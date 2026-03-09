@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --blue: #1B3A6B;
+  --blue-light: #2A5298;
+  --blue-dark: #0F1F3D;
+  --orange: #F97316;
+  --orange-light: #FB923C;
+  --beige: #F5F0E8;
+  --beige-dark: #E8E0D0;
+  --card: #FDFCF9;
+  --text: #0F1F3D;
+  --text-muted: #6B7280;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background-color: var(--beige);
+  color: var(--text);
+}
+
+//* ===== RESPONSIVE STYLES ===== */
+
+/* MobileNav - hidden on desktop */
+.mobile-nav-wrapper {
+  display: none !important;
+}
+
+/* Navbar - hamburger hidden on desktop */
+.nav-hamburger {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+
+  /* Navbar */
+  .nav-links {
+    display: none !important;
+  }
+  .nav-hamburger {
+    display: block !important;
+  }
+
+  /* MobileNav - show on mobile */
+  .mobile-nav-wrapper {
+    display: block !important;
+  }
+
+  /* Hide desktop sidebar */
+  .desktop-sidebar {
+    display: none !important;
+  }
+
+  /* Dashboard full width */
+  .dashboard-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Main content padding */
+  .main-content {
+    padding: 1.2rem !important;
+    padding-top: 1.5rem !important;
+  }
+
+  /* Stats grid - 2 columns on mobile */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Dashboard bottom section */
+  .dashboard-bottom {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Chat layout */
+  .chat-layout {
+    grid-template-columns: 1fr !important;
+    height: calc(100vh - 60px) !important;
+  }
+
+  .chat-layout > div:first-child {
+    display: none !important;
+  }
+
+
+  /* Listings page */
+  .listings-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Hide map on mobile */
+  .map-container {
+    display: none !important;
+  }
+
+  /* Single listing */
+  .listing-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .listing-sticky-panel {
+    position: relative !important;
+    top: auto !important;
+  }
+
+  /* Auth pages */
+  .auth-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .auth-branding {
+    display: none !important;
+  }
+
+  /* Landing hero - stack on mobile */
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    padding: 5rem 5% 3rem !important;
+    min-height: auto !important;
+  }
+
+  /* Why us cards - stack on mobile */
+  .why-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* CTA padding */
+  .cta-section {
+    padding: 2.5rem 1.5rem !important;
+    border-radius: '16px' !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Show mobile filter button */
+  .mobile-filter-btn {
+    display: block !important;
+  }
+
+  /* Hide desktop filter sidebar */
+  .listings-filter {
+    display: none !important;
+  }
+
+  /* Listings layout single column */
+  .listings-layout {
+    grid-template-columns: 1fr !important;
+    padding: 0.5rem 4% 3rem !important;
+  }
+
+  /* Map hidden on mobile */
+  .map-container {
+    display: none !important;
+  }
+
+  .create-listing-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .listing-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .listing-card {
+    grid-template-columns: 60px 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .listing-card > div:last-child {
+    grid-column: 1 / -1 !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+   .profile-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+   .admin-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
