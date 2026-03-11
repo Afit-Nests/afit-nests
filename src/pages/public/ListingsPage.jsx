@@ -201,21 +201,25 @@ export default function ListingsPage() {
                     }}
                   >
                     <div style={{
-                      height: '160px',
-                      background: 'linear-gradient(135deg, var(--blue) 0%, #2A5298 100%)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '3rem', position: 'relative',
-                    }}>
-                      🏠
-                      <div style={{
-                        position: 'absolute', top: '0.8rem', left: '0.8rem',
-                        background: 'var(--orange)', color: 'white',
-                        fontSize: '0.7rem', fontWeight: 700,
-                        padding: '0.25rem 0.7rem', borderRadius: '50px',
-                      }}>
-                        Available
-                      </div>
-                    </div>
+  height: '160px',
+  background: 'linear-gradient(135deg, var(--blue) 0%, #2A5298 100%)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  fontSize: '3rem', position: 'relative', overflow: 'hidden',
+}}>
+  {listing.photos && listing.photos.length > 0 ? (
+    <img src={listing.photos[0]} alt={listing.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+  ) : (
+    '🏠'
+  )}
+  <div style={{
+    position: 'absolute', top: '0.8rem', left: '0.8rem',
+    background: 'var(--orange)', color: 'white',
+    fontSize: '0.7rem', fontWeight: 700,
+    padding: '0.25rem 0.7rem', borderRadius: '50px',
+  }}>
+    Available
+  </div>
+</div>
 
                     <div style={{ padding: '1.1rem' }}>
                       <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--orange)', marginBottom: '0.3rem' }}>
