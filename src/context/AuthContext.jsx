@@ -133,16 +133,19 @@ export function AuthProvider({ children }) {
 
   const signUpStudent = async ({ email, password, fullName, matricNumber, department, phone }) => {
     const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) return { error }
+if (error) return { error }
 
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: data.user.id,
-      role: 'student',
-      full_name: fullName,
-      matric_number: matricNumber,
-      department,
-      phone,
-    })
+const userId = data.user?.id ?? data.session?.user?.id
+if (!userId) return { error: { message: 'Signup failed. Please try again.' } }
+
+const { error: profileError } = await supabase.from('profiles').insert({
+  id: userId,
+  role: 'student',
+  full_name: fullName,
+  matric_number: matricNumber,
+  department,
+  phone,
+})
 
     if (!profileError) {
       // Send confirmation email
