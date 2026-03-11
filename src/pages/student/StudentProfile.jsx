@@ -32,6 +32,8 @@ export default function StudentProfile() {
     setError(null)
   }
 
+  const matricLocked = !!profile?.matric_number
+  console.log('matric_number:', profile?.matric_number, 'locked:', matricLocked)
   const handleSave = async () => {
     setSaving(true)
     const updates = {
