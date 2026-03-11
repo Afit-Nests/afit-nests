@@ -43,21 +43,27 @@ export default function CreateListing() {
     setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
   }
 
-  const uploadPhotos = async (listingId) => {
-    const urls = []
-    for (let i = 0; i < photos.length; i++) {
-      setUploadProgress(`Uploading photo ${i + 1} of ${photos.length}...`)
-      const file = photos[i]
-      const ext = file.name.split('.').pop()
-      const path = `${listingId}/${Date.now()}_${i}.${ext}`
-      const { error } = await supabase.storage.from('listings').upload(path, file)
-      if (!error) {
-        const { data } = supabase.storage.from('listings').getPublicUrl(path)
-        urls.push(data.publicUrl)
-      }
+ const uploadPhotos = async (listingId) => {
+  const urls = []
+  for (let i = 0; i < photos.length; i++) {
+    setUploadProgress(`Uploading photo ${i + 1} of ${photos.length}...`)
+    const file = photos[i]
+    const ext = file.name.split('.').pop()
+    const path = `${listingId}/${Date.now()}_${i}.${ext}`
+
+    console.log('Uploading to path:', path)
+    const { data, error } = await supabase.storage.from('listings').upload(path, file)
+    console.log('Upload result:', data, error)
+
+    if (!error) {
+      const { data: urlData } = supabase.storage.from('listings').getPublicUrl(path)
+      console.log('Public URL:', urlData.publicUrl)
+      urls.push(urlData.publicUrl)
     }
-    return urls
   }
+  console.log('Final URLs array:', urls)
+  return urls
+}
 
   const handleSubmit = async () => {
     if (!form.title || !form.type || !form.price || !form.distance || !form.address) {
