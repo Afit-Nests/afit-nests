@@ -1,15 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-```
-This prevents 404 errors when users refresh or navigate directly to a page.
 
-**2. Fix Google OAuth redirect URL**
-Go to Supabase → Authentication → **URL Configuration** and add your Netlify URL:
-```
-https://afit-nests.netlify.app
-```
-And in **Redirect URLs** add:
-```
-https://afit-nests.netlify.app/**
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "VITE_RESEND_API_KEY,VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL"
