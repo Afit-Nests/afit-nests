@@ -21,6 +21,7 @@ export default function StudentProfile() {
     email: '',
     phone: profile?.phone || '',
     department: profile?.department || '',
+    matricNumber: profile?.matric_number || '',
   })
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -33,13 +34,20 @@ export default function StudentProfile() {
 
   const handleSave = async () => {
     setSaving(true)
+    const updates = {
+      full_name: form.fullName,
+      phone: form.phone,
+      department: form.department,
+    }
+
+    // Only allow matric number update if it was empty (Google signup)
+    if (!matricLocked) {
+      updates.matric_number = form.matricNumber
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({
-        full_name: form.fullName,
-        phone: form.phone,
-        department: form.department,
-      })
+      .update(updates)
       .eq('id', profile.id)
 
     if (error) {
@@ -120,12 +128,19 @@ export default function StudentProfile() {
               </div>
 
               <div>
-                <label style={labelStyle}>AFIT Matric Number</label>
-                <input value={profile?.matric_number || ''} disabled style={{ ...inputStyle, opacity: 0.6, cursor: 'not-allowed' }} />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                  Matric number cannot be changed.
-                </p>
-              </div>
+  <label style={labelStyle}>AFIT Matric Number</label>
+  <input
+    name="matricNumber"
+    value={form.matricNumber}
+    onChange={handleChange}
+    placeholder="e.g. AFIT/21/0001"
+    disabled={matricLocked}
+    style={{ ...inputStyle, opacity: matricLocked ? 0.6 : 1, cursor: matricLocked ? 'not-allowed' : 'text' }}
+  />
+  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+    {matricLocked ? 'Matric number cannot be changed.' : 'Enter your AFIT matric number.'}
+  </p>
+</div>
 
               <div>
                 <label style={labelStyle}>Department</label>
