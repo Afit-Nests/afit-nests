@@ -22,6 +22,9 @@ export default function LandlordChats() {
   const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef(null)
   const [searchParams] = useSearchParams()
+  const [isTyping, setIsTyping] = useState(false)
+  const typingTimeoutRef = useRef(null)
+  const channelRef = useRef(null)
 
   useEffect(() => {
     if (profile) fetchChats()
@@ -38,7 +41,29 @@ export default function LandlordChats() {
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id)
-      subscribeToMessages(selectedChat.id)
+      channelRef.current = supabase
+        .channel(`landlord_messages:${selectedChat.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${selectedChat.id}`,
+        }, payload => {
+          setMessages(prev => [...prev, payload.new])
+          setIsTyping(false)
+        })
+        .on('broadcast', { event: 'typing' }, ({ payload }) => {
+          if (payload.sender_id !== profile.id) {
+            setIsTyping(true)
+            clearTimeout(typingTimeoutRef.current)
+            typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 2000)
+          }
+        })
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channelRef.current)
+      }
     }
   }, [selectedChat])
 
@@ -76,31 +101,23 @@ export default function LandlordChats() {
     if (!error) setMessages(data)
   }
 
-  const subscribeToMessages = (chatId) => {
-    const subscription = supabase
-      .channel(`landlord_messages:${chatId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `chat_id=eq.${chatId}`,
-      }, payload => {
-        setMessages(prev => [...prev, payload.new])
+  const handleTyping = () => {
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { sender_id: profile.id },
       })
-      .subscribe()
-
-    return () => supabase.removeChannel(subscription)
+    }
   }
 
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedChat) return
-
     const { error } = await supabase.from('messages').insert({
       chat_id: selectedChat.id,
       sender_id: profile.id,
       text: newMessage.trim(),
     })
-
     if (!error) setNewMessage('')
   }
 
@@ -257,6 +274,23 @@ export default function LandlordChats() {
                   </div>
                 )
               })}
+              {isTyping && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{
+                    padding: '0.75rem 1rem', borderRadius: '18px 18px 18px 4px',
+                    background: 'var(--card)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                  }}>
+                    {[0, 1, 2].map(i => (
+                      <div key={i} style={{
+                        width: '7px', height: '7px', borderRadius: '50%',
+                        background: 'var(--text-muted)',
+                        animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -269,7 +303,7 @@ export default function LandlordChats() {
             <div style={{ padding: '1rem 1.6rem', background: 'var(--card)', borderTop: '1px solid var(--beige-dark)', display: 'flex', gap: '0.8rem', alignItems: 'flex-end' }}>
               <textarea
                 value={newMessage}
-                onChange={e => setNewMessage(e.target.value)}
+                onChange={e => { setNewMessage(e.target.value); handleTyping() }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message... (Enter to send)"
                 rows={1}
