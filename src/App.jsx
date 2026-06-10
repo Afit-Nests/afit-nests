@@ -28,6 +28,7 @@ import ViewingRequests from './pages/landlord/ViewingRequests'
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Verifications from './pages/admin/Verifications'
+import PendingAllocations from './pages/admin/PendingAllocations'
 import Disputes from './pages/admin/Disputes'
 
 import ProtectedRoute from './components/common/ProtectedRoute'
@@ -105,14 +106,20 @@ function App() {
         <Route path="/landlord/profile" element={<LandlordProfile />} />
 
         {/* Admin Routes - protected */}
-        <Route path="/admin/dashboard" element={
+        {/* <Route path="/admin/dashboard" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminDashboard />
           </ProtectedRoute>
-        } />
+        } /> */}
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/verifications" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <Verifications />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/pending-allocations" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <PendingAllocations />
           </ProtectedRoute>
         } />
         <Route path="/admin/disputes" element={

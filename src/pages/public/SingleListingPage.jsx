@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { initializePayment, createPaymentRecord } from '../../lib/paystack'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
 
@@ -28,6 +29,7 @@ export default function SingleListingPage() {
   const [viewingLoading, setViewingLoading] = useState(false)
   const [viewingSuccess, setViewingSuccess] = useState(false)
   const [currentPhoto, setCurrentPhoto] = useState(0)
+  const [paymentLoading, setPaymentLoading] = useState(false)
 
   useEffect(() => {
     fetchListing()
@@ -129,6 +131,70 @@ export default function SingleListingPage() {
     setViewingLoading(false)
   }
 
+  const handlePayment = async () => {
+    if (!user) {
+      navigate('/student/login')
+      return
+    }
+    if (profile?.role !== 'student') {
+      alert('Only students can pay for accommodation')
+      return
+    }
+
+    // Race condition protection: Check status before payment
+    const { data: currentListing } = await supabase
+      .from('listings')
+      .select('status')
+      .eq('id', listing.id)
+      .single()
+
+    if (currentListing?.status !== 'available') {
+      alert('This property is no longer available')
+      return
+    }
+
+    setPaymentLoading(true)
+
+    try {
+      // Create payment record
+      const payment = await createPaymentRecord(
+        listing.id,
+        profile.id,
+        listing.landlord_id,
+        listing.price
+      )
+
+      // Initialize Paystack payment
+      await initializePayment(profile.email || user.email, listing.price, {
+        listing_id: listing.id,
+        listing_title: listing.title,
+        student_id: profile.id,
+        payment_reference: payment.payment_reference,
+      })
+
+      // Refresh listing data after payment
+      await fetchListing()
+    } catch (error) {
+      console.error('Payment error:', error)
+      alert('Payment failed. Please try again.')
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'available':
+        return { icon: '🟢', text: 'Available', color: '#16A34A' }
+      case 'pending_confirmation':
+        return { icon: '🟡', text: 'Pending Confirmation', color: '#F59E0B' }
+      case 'occupied':
+        return { icon: '🔴', text: 'Occupied', color: '#DC2626' }
+      default:
+        return { icon: '🟢', text: 'Available', color: '#16A34A' }
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--beige)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -190,14 +256,9 @@ export default function SingleListingPage() {
   ) : (
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6rem' }}>🏠</div>
   )}
-  {!listing.available && (
-    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '1.2rem' }}>
-      Not Currently Available
-    </div>
-  )}
-  {listing.available && (
-    <div style={{ position: 'absolute', top: '1rem', left: '1rem', background: 'var(--orange)', color: 'white', fontSize: '0.78rem', fontWeight: 700, padding: '0.35rem 0.9rem', borderRadius: '50px' }}>
-      Available Now
+  {listing.status && (
+    <div style={{ position: 'absolute', top: '1rem', left: '1rem', background: getStatusBadge(listing.status).color, color: 'white', fontSize: '0.78rem', fontWeight: 700, padding: '0.35rem 0.9rem', borderRadius: '50px' }}>
+      {getStatusBadge(listing.status).icon} {getStatusBadge(listing.status).text}
     </div>
   )}
 </div>
@@ -275,20 +336,31 @@ export default function SingleListingPage() {
               </p>
             </div>
 
-            {listing.available ? (
+            {listing.status === 'available' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                <button onClick={handleStartChat} style={{ background: 'var(--orange)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.95rem', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', width: '100%', boxShadow: '0 4px 20px rgba(249,115,22,0.35)' }}>
+                <button onClick={handlePayment} disabled={paymentLoading} style={{ background: paymentLoading ? 'var(--text-muted)' : 'var(--orange)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.95rem', border: 'none', cursor: paymentLoading ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', width: '100%', boxShadow: paymentLoading ? 'none' : '0 4px 20px rgba(249,115,22,0.35)' }}>
+                  {paymentLoading ? 'Processing...' : '💳 Pay for Accommodation'}
+                </button>
+                <button onClick={handleStartChat} style={{ background: 'var(--blue)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.95rem', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', width: '100%' }}>
                   💬 Chat with Landlord
                 </button>
-                <button onClick={handleBookViewing} style={{ background: 'var(--blue)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.95rem', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', width: '100%' }}>
+                <button onClick={handleBookViewing} style={{ background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.95rem', border: '1px solid var(--beige-dark)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', width: '100%' }}>
                   📅 Book a Viewing
                 </button>
               </div>
-            ) : (
-              <div style={{ background: 'var(--beige)', border: '1px solid var(--beige-dark)', borderRadius: '16px', padding: '1.2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem', fontWeight: 500 }}>
-                This property is not currently available
+            ) : listing.status === 'pending_confirmation' ? (
+              <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '16px', padding: '1.2rem', textAlign: 'center', color: '#F59E0B', fontSize: '0.88rem', fontWeight: 500 }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🟡</div>
+                <div style={{ fontWeight: 700, marginBottom: '0.3rem' }}>Pending Confirmation</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>A payment has been received for this accommodation and is currently being reviewed.</div>
               </div>
-            )}
+            ) : listing.status === 'occupied' ? (
+              <div style={{ background: 'rgba(220, 38, 38, 0.08)', border: '1px solid rgba(220, 38, 38, 0.2)', borderRadius: '16px', padding: '1.2rem', textAlign: 'center', color: '#DC2626', fontSize: '0.88rem', fontWeight: 500 }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🔴</div>
+                <div style={{ fontWeight: 700, marginBottom: '0.3rem' }}>Occupied</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>This accommodation is no longer available.</div>
+              </div>
+            ) : null}
 
             <Link to="/listings" style={{ textAlign: 'center', color: 'var(--text-muted)', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 500 }}>
               ← Back to all listings

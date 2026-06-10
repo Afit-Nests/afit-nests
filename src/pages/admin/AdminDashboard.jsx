@@ -5,6 +5,7 @@ import MobileNav from '../../components/common/MobileNav'
 const SIDEBAR_LINKS = [
   { to: '/admin/dashboard', icon: '📊', label: 'Dashboard', active: true },
   { to: '/admin/verifications', icon: '✅', label: 'Verifications' },
+  { to: '/admin/pending-allocations', icon: '⏳', label: 'Pending Allocations' },
   { to: '/admin/disputes', icon: '⚠️', label: 'Disputes' },
   { to: '/listings', icon: '🏠', label: 'All Listings' },
 ]
