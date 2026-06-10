@@ -45,7 +45,7 @@ export default function LandingPage() {
             marginBottom: '1.5rem',
           }}>
             Find Your <span style={{ color: 'var(--orange)' }}>Perfect</span><br />
-            Home in Barkallahu
+            Home in Barkallahu and Agric Quarters.
           </h1>
 
           <p style={{
@@ -158,7 +158,7 @@ export default function LandingPage() {
                 color: 'var(--blue)',
                 marginBottom: '0.3rem',
               }}>
-                ₦80,000 <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ year</span>
+                ₦250,000 <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ year</span>
               </div>
               <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.8rem' }}>
                 2-Bedroom Self-Contain — Barkallahu

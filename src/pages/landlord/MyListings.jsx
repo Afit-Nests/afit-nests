@@ -32,8 +32,24 @@ export default function MyListings() {
   }
 
   const toggleAvailability = async (id, currentStatus) => {
-    const { error } = await supabase.from('listings').update({ available: !currentStatus }).eq('id', id)
-    if (!error) setListings(listings.map(l => l.id === id ? { ...l, available: !currentStatus } : l))
+    // Landlords can only toggle between 'available' and 'occupied'
+    // 'pending_confirmation' is system-managed
+    const newStatus = currentStatus === 'available' ? 'occupied' : 'available'
+    const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', id)
+    if (!error) setListings(listings.map(l => l.id === id ? { ...l, status: newStatus } : l))
+  }
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'available':
+        return { icon: '🟢', text: 'Available', color: '#16A34A', bgColor: 'rgba(22,163,74,0.1)' }
+      case 'pending_confirmation':
+        return { icon: '🟡', text: 'Pending Confirmation', color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)' }
+      case 'occupied':
+        return { icon: '🔴', text: 'Occupied', color: '#DC2626', bgColor: 'rgba(220,38,38,0.1)' }
+      default:
+        return { icon: '🟢', text: 'Available', color: '#16A34A', bgColor: 'rgba(22,163,74,0.1)' }
+    }
   }
 
   if (loading) {
@@ -104,13 +120,15 @@ export default function MyListings() {
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>{listing.type} · {listing.distance} mins from AFIT · ₦{listing.price.toLocaleString()}/yr</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.8rem' }}>
-                  <div style={{ padding: '0.35rem 0.9rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700, background: listing.available ? 'rgba(22,163,74,0.1)' : 'rgba(107,114,128,0.1)', color: listing.available ? '#16A34A' : '#6B7280' }}>
-                    {listing.available ? '✅ Available' : '⭕ Unavailable'}
+                  <div style={{ padding: '0.35rem 0.9rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700, background: getStatusBadge(listing.status).bgColor, color: getStatusBadge(listing.status).color }}>
+                    {getStatusBadge(listing.status).icon} {getStatusBadge(listing.status).text}
                   </div>
                   <div style={{ display: 'flex', gap: '0.6rem' }}>
-                    <button onClick={() => toggleAvailability(listing.id, listing.available)} style={{ background: 'var(--beige)', color: 'var(--text)', padding: '0.45rem 0.9rem', borderRadius: '50px', border: '1px solid var(--beige-dark)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-                      {listing.available ? 'Mark Unavailable' : 'Mark Available'}
-                    </button>
+                    {listing.status !== 'pending_confirmation' && (
+                      <button onClick={() => toggleAvailability(listing.id, listing.status)} style={{ background: 'var(--beige)', color: 'var(--text)', padding: '0.45rem 0.9rem', borderRadius: '50px', border: '1px solid var(--beige-dark)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                        {listing.status === 'available' ? 'Mark Occupied' : 'Mark Available'}
+                      </button>
+                    )}
                     <Link to={`/listings/${listing.id}`} style={{ background: 'var(--blue)', color: 'white', padding: '0.45rem 0.9rem', borderRadius: '50px', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}>View</Link>
                   </div>
                 </div>

@@ -33,7 +33,7 @@ export default function ListingsPage() {
     const { data, error } = await supabase
       .from('listings')
       .select(`*, profiles (full_name, verified)`)
-      .eq('available', true)
+      .eq('status', 'available')
       .order('created_at', { ascending: false })
     if (!error) setListings(data)
     setLoading(false)

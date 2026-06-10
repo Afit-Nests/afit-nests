@@ -78,7 +78,7 @@ export default function CreateListing() {
       title: form.title, type: form.type,
       price: Number(form.price), distance: Number(form.distance),
       description: form.description, address: form.address,
-      amenities, available: true,
+      amenities, status: 'available',
       photos: [],
     }).select().single()
 
