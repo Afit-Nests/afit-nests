@@ -103,7 +103,11 @@ function App() {
             <ViewingRequests />
           </ProtectedRoute>
         } />
-        <Route path="/landlord/profile" element={<LandlordProfile />} />
+        <Route path="/landlord/profile" element={
+  <ProtectedRoute allowedRoles={['landlord']}>
+    <LandlordProfile />
+  </ProtectedRoute>
+} />
 
         {/* Admin Routes - protected */}
         {/* <Route path="/admin/dashboard" element={
@@ -111,7 +115,11 @@ function App() {
             <AdminDashboard />
           </ProtectedRoute>
         } /> */}
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/dashboard" element={
+  <ProtectedRoute allowedRoles={['admin']}>
+    <AdminDashboard />
+  </ProtectedRoute>
+} />
         <Route path="/admin/verifications" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <Verifications />
