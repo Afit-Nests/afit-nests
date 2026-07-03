@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import MobileNav from '../../components/common/MobileNav'
+import { MessageSquare, Calendar, Home, Search, User, LogOut, Lightbulb } from 'lucide-react'
 
 const SIDEBAR_LINKS = [
-  { to: '/student/dashboard', icon: '🏠', label: 'Dashboard', active: true },
-  { to: '/student/chats', icon: '💬', label: 'My Chats' },
-  { to: '/student/viewings', icon: '📅', label: 'My Viewings' },
-  { to: '/student/profile', icon: '👤', label: 'Profile' },
-  { to: '/listings', icon: '🔍', label: 'Browse Listings' },
+  { to: '/student/dashboard', icon: Home, label: 'Dashboard', active: true },
+  { to: '/student/chats', icon: MessageSquare, label: 'My Chats' },
+  { to: '/student/viewings', icon: Calendar, label: 'My Viewings' },
+  { to: '/student/profile', icon: User, label: 'Profile' },
+  { to: '/listings', icon: Search, label: 'Browse Listings' },
 ]
 
 export default function StudentDashboard() {
@@ -61,17 +62,22 @@ export default function StudentDashboard() {
             Student Panel
           </div>
         </Link>
-        {SIDEBAR_LINKS.map(item => (
-          <Link key={item.to} to={item.to} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none',
-            background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent',
-            color: item.active ? 'white' : 'rgba(255,255,255,0.6)',
-            fontSize: '0.88rem', fontWeight: item.active ? 600 : 400,
-          }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>{item.icon} {item.label}</span>
-          </Link>
-        ))}
+        {SIDEBAR_LINKS.map(item => {
+          const Icon = item.icon
+          return (
+            <Link key={item.to} to={item.to} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none',
+              background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent',
+              color: item.active ? 'white' : 'rgba(255,255,255,0.6)',
+              fontSize: '0.88rem', fontWeight: item.active ? 600 : 400,
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                <Icon size={17} /> {item.label}
+              </span>
+            </Link>
+          )
+        })}
         <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem' }}>
@@ -82,15 +88,15 @@ export default function StudentDashboard() {
               <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{profile?.matric_number}</div>
             </div>
           </div>
-          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ background: 'none', border: 'none', cursor: 'pointer', marginTop: '0.8rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>
-            🚪 Logout
+          <button onClick={async () => { await signOut(); window.location.href = '/' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', marginTop: '0.8rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <LogOut size={13} /> Logout
           </button>
         </div>
       </div>
 
       {/* MAIN */}
       <div className="main-content" style={{ padding: '2.5rem', overflowY: 'auto' }}>
-
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.8rem', fontWeight: 900, color: 'var(--blue-dark)' }}>
             Welcome, {profile?.full_name?.split(' ')[0]} 👋
@@ -103,22 +109,27 @@ export default function StudentDashboard() {
         {/* Stats */}
         <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.2rem', marginBottom: '2rem' }}>
           {[
-            { icon: '💬', label: 'Active Chats', value: stats.chats, link: '/student/chats' },
-            { icon: '📅', label: 'Viewing Bookings', value: stats.viewings, link: '/student/viewings' },
-            { icon: '🏠', label: 'New Listings', value: stats.listings, link: '/listings' },
-          ].map(stat => (
-            <Link key={stat.label} to={stat.link} style={{ textDecoration: 'none' }}>
-              <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.5rem', border: '1px solid var(--beige-dark)' }}>
-                <div style={{ fontSize: '1.8rem', marginBottom: '0.8rem' }}>{stat.icon}</div>
-                <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '2rem', fontWeight: 900, color: 'var(--blue)', lineHeight: 1 }}>
-                  {stat.value}
+            { icon: MessageSquare, label: 'Active Chats', value: stats.chats, link: '/student/chats' },
+            { icon: Calendar, label: 'Viewing Bookings', value: stats.viewings, link: '/student/viewings' },
+            { icon: Home, label: 'New Listings', value: stats.listings, link: '/listings' },
+          ].map(stat => {
+            const Icon = stat.icon
+            return (
+              <Link key={stat.label} to={stat.link} style={{ textDecoration: 'none' }}>
+                <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.5rem', border: '1px solid var(--beige-dark)' }}>
+                  <div style={{ marginBottom: '0.8rem' }}>
+                    <Icon size={24} color='var(--orange)' />
+                  </div>
+                  <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '2rem', fontWeight: 900, color: 'var(--blue)', lineHeight: 1 }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginTop: '0.3rem' }}>
+                    {stat.label}
+                  </div>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginTop: '0.3rem' }}>
-                  {stat.label}
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
 
         <div className="dashboard-bottom" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.5rem' }}>
@@ -143,8 +154,8 @@ export default function StudentDashboard() {
                 {recentListings.map(listing => (
                   <div key={listing.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--beige)', borderRadius: '12px', border: '1px solid var(--beige-dark)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
-                        🏠
+                      <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Home size={18} color='white' />
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text)' }}>{listing.title}</div>
@@ -168,19 +179,19 @@ export default function StudentDashboard() {
               <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--blue)', marginBottom: '1.2rem' }}>Quick Actions</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <Link to="/listings" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--orange)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem' }}>
-                  🔍 Browse Listings
+                  <Search size={16} /> Browse Listings
                 </Link>
                 <Link to="/student/chats" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                  💬 My Chats
+                  <MessageSquare size={16} /> My Chats
                 </Link>
                 <Link to="/student/viewings" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                  📅 My Viewings
+                  <Calendar size={16} /> My Viewings
                 </Link>
               </div>
             </div>
 
             <div style={{ background: 'var(--blue)', borderRadius: '20px', padding: '1.8rem' }}>
-              <div style={{ fontSize: '1.5rem', marginBottom: '0.8rem' }}>💡</div>
+              <Lightbulb size={24} color='var(--orange)' style={{ marginBottom: '0.8rem' }} />
               <h4 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'white', marginBottom: '0.5rem' }}>Safety Tip</h4>
               <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
                 Always book a viewing before making any payment. Never pay outside the agreed process.
