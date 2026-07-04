@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, isValidElement } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Menu, X, LogOut } from 'lucide-react'
@@ -7,6 +7,15 @@ export default function MobileNav({ links }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { profile, signOut } = useAuth()
   const location = useLocation()
+
+  const renderIcon = (icon) => {
+    if (!icon) return null
+    if (isValidElement(icon)) return icon
+    if (typeof icon === 'string') return icon
+
+    const Icon = icon
+    return <Icon size={16} />
+  }
 
   return (
     <>
@@ -56,7 +65,10 @@ export default function MobileNav({ links }) {
                   fontSize: '0.95rem', fontWeight: location.pathname === item.to ? 600 : 400,
                 }}
               >
-                {item.icon} {item.label}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                  {renderIcon(item.icon)}
+                  <span>{item.label}</span>
+                </span>
               </Link>
             ))}
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '0.5rem', paddingTop: '0.8rem' }}>
