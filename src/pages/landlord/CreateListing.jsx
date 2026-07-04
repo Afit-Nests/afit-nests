@@ -2,15 +2,16 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, Camera, X, CheckCircle, Lightbulb, ClipboardList } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
-  { to: '/landlord/dashboard', icon: '📊', label: 'Dashboard' },
-  { to: '/landlord/chats', icon: '💬', label: 'Chats' },
-  { to: '/landlord/listings', icon: '🏠', label: 'My Listings' },
-  { to: '/landlord/listings/create', icon: '➕', label: 'Add Listing', active: true },
-  { to: '/landlord/viewings', icon: '📅', label: 'Viewing Requests' },
-  { to: '/landlord/profile', icon: '👤', label: 'Profile' },
+  { to: '/landlord/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { to: '/landlord/chats', icon: <MessageSquare size={18} />, label: 'Chats' },
+  { to: '/landlord/listings', icon: <Home size={18} />, label: 'My Listings' },
+  { to: '/landlord/listings/create', icon: <Plus size={18} />, label: 'Add Listing', active: true },
+  { to: '/landlord/viewings', icon: <Calendar size={18} />, label: 'Viewing Requests' },
+  { to: '/landlord/profile', icon: <User size={18} />, label: 'Profile' },
 ]
 
 const AMENITY_OPTIONS = ['Power', 'Water', 'Bathroom', 'Kitchen', 'Parking', 'Security', 'Shared Bathroom', 'Fence']
@@ -20,8 +21,8 @@ export default function CreateListing() {
   const { profile, signOut } = useAuth()
   const [form, setForm] = useState({ title: '', type: '', price: '', distance: '', description: '', address: '' })
   const [amenities, setAmenities] = useState([])
-  const [photos, setPhotos] = useState([]) // File objects
-  const [photoPreviews, setPhotoPreviews] = useState([]) // Preview URLs
+  const [photos, setPhotos] = useState([])
+  const [photoPreviews, setPhotoPreviews] = useState([])
   const [submitted, setSubmitted] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
 
@@ -32,7 +33,6 @@ export default function CreateListing() {
     const files = Array.from(e.target.files)
     const remaining = 5 - photos.length
     const selected = files.slice(0, remaining)
-
     setPhotos(prev => [...prev, ...selected])
     const previews = selected.map(f => URL.createObjectURL(f))
     setPhotoPreviews(prev => [...prev, ...previews])
@@ -43,27 +43,22 @@ export default function CreateListing() {
     setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
   }
 
- const uploadPhotos = async (listingId) => {
-  const urls = []
-  for (let i = 0; i < photos.length; i++) {
-    setUploadProgress(`Uploading photo ${i + 1} of ${photos.length}...`)
-    const file = photos[i]
-    const ext = file.name.split('.').pop()
-    const path = `${listingId}/${Date.now()}_${i}.${ext}`
-
-    console.log('Uploading to path:', path)
-    const { data, error } = await supabase.storage.from('listings').upload(path, file)
-    console.log('Upload result:', data, error)
-
-    if (!error) {
-      const { data: urlData } = supabase.storage.from('listings').getPublicUrl(path)
-      console.log('Public URL:', urlData.publicUrl)
-      urls.push(urlData.publicUrl)
+  const uploadPhotos = async (listingId) => {
+    const urls = []
+    for (let i = 0; i < photos.length; i++) {
+      setUploadProgress(`Uploading photo ${i + 1} of ${photos.length}...`)
+      const file = photos[i]
+      const ext = file.name.split('.').pop()
+      const path = `${listingId}/${Date.now()}_${i}.${ext}`
+      const { data, error } = await supabase.storage.from('listings').upload(path, file)
+      console.log('Upload result:', data, error)
+      if (!error) {
+        const { data: urlData } = supabase.storage.from('listings').getPublicUrl(path)
+        urls.push(urlData.publicUrl)
+      }
     }
+    return urls
   }
-  console.log('Final URLs array:', urls)
-  return urls
-}
 
   const handleSubmit = async () => {
     if (!form.title || !form.type || !form.price || !form.distance || !form.address) {
@@ -71,20 +66,16 @@ export default function CreateListing() {
       return
     }
     setSubmitted(true)
-
-    // Insert listing first to get the ID
     const { data: listing, error } = await supabase.from('listings').insert({
       landlord_id: profile.id,
       title: form.title, type: form.type,
       price: Number(form.price), distance: Number(form.distance),
       description: form.description, address: form.address,
-      amenities, status: 'available',
-      photos: [],
+      amenities, status: 'available', photos: [],
     }).select().single()
 
     if (error) { alert('Error: ' + error.message); setSubmitted(false); return }
 
-    // Upload photos and update listing
     if (photos.length > 0) {
       const photoUrls = await uploadPhotos(listing.id)
       await supabase.from('listings').update({ photos: photoUrls }).eq('id', listing.id)
@@ -96,7 +87,6 @@ export default function CreateListing() {
 
   return (
     <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--beige)', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
-
       <MobileNav links={SIDEBAR_LINKS} />
 
       <div className="desktop-sidebar" style={{ background: 'var(--blue-dark)', padding: '2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'sticky', top: 0, height: '100vh' }}>
@@ -105,13 +95,15 @@ export default function CreateListing() {
           <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.2rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Landlord Panel</div>
         </Link>
         {SIDEBAR_LINKS.map(item => (
-          <Link key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none', background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent', color: item.active ? 'white' : 'rgba(255,255,255,0.6)', fontSize: '0.88rem', fontWeight: item.active ? 600 : 400, gap: '0.7rem' }}>
+          <Link key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none', background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent', color: item.active ? 'white' : 'rgba(255,255,255,0.6)', fontSize: '0.88rem', fontWeight: item.active ? 600 : 400 }}>
             {item.icon} {item.label}
           </Link>
         ))}
         <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
           <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'white', marginBottom: '0.5rem' }}>{profile?.full_name}</div>
-          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>🚪 Logout</button>
+          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>
+            <LogOut size={14} /> Logout
+          </button>
         </div>
       </div>
 
@@ -122,8 +114,8 @@ export default function CreateListing() {
         </div>
 
         {submitted && (
-          <div style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '16px', padding: '1.2rem 1.5rem', marginBottom: '1.5rem', color: '#16A34A', fontWeight: 600 }}>
-            ✅ {uploadProgress || 'Listing submitted! Redirecting...'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '16px', padding: '1.2rem 1.5rem', marginBottom: '1.5rem', color: '#16A34A', fontWeight: 600 }}>
+            <CheckCircle size={18} /> {uploadProgress || 'Listing submitted! Redirecting...'}
           </div>
         )}
 
@@ -170,49 +162,28 @@ export default function CreateListing() {
             <div>
               <label style={labelStyle}>Property Photos (up to 5)</label>
               <div style={{ marginTop: '0.4rem' }}>
-
-                {/* Preview Grid */}
                 {photoPreviews.length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem', marginBottom: '0.8rem' }}>
                     {photoPreviews.map((preview, index) => (
                       <div key={index} style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', aspectRatio: '1' }}>
                         <img src={preview} alt={`Photo ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <button
-                          onClick={() => removePhoto(index)}
-                          style={{
-                            position: 'absolute', top: '0.3rem', right: '0.3rem',
-                            background: 'rgba(0,0,0,0.6)', color: 'white',
-                            border: 'none', borderRadius: '50%', width: '22px', height: '22px',
-                            cursor: 'pointer', fontSize: '0.7rem', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >✕</button>
+                        <button onClick={() => removePhoto(index)} style={{ position: 'absolute', top: '0.3rem', right: '0.3rem', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <X size={12} />
+                        </button>
                         {index === 0 && (
-                          <div style={{ position: 'absolute', bottom: '0.3rem', left: '0.3rem', background: 'var(--orange)', color: 'white', fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                            MAIN
-                          </div>
+                          <div style={{ position: 'absolute', bottom: '0.3rem', left: '0.3rem', background: 'var(--orange)', color: 'white', fontSize: '0.6rem', fontWeight: 700, padding: '0.15rem 0.4rem', borderRadius: '4px' }}>MAIN</div>
                         )}
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* Upload Button */}
                 {photos.length < 5 && (
-                  <label style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: '0.6rem', padding: '1rem', borderRadius: '12px',
-                    border: '2px dashed var(--beige-dark)', cursor: 'pointer',
-                    color: 'var(--text-muted)', fontSize: '0.88rem', fontWeight: 500,
-                    background: 'var(--beige)', transition: 'all 0.2s',
-                  }}>
-                    📷 {photoPreviews.length === 0 ? 'Upload Photos' : `Add More (${5 - photos.length} left)`}
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', padding: '1rem', borderRadius: '12px', border: '2px dashed var(--beige-dark)', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.88rem', fontWeight: 500, background: 'var(--beige)' }}>
+                    <Camera size={18} /> {photoPreviews.length === 0 ? 'Upload Photos' : `Add More (${5 - photos.length} left)`}
                     <input type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
                   </label>
                 )}
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                  First photo will be the main display image. Max 5 photos.
-                </p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>First photo will be the main display image. Max 5 photos.</p>
               </div>
             </div>
 
@@ -234,15 +205,19 @@ export default function CreateListing() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ background: 'var(--blue)', borderRadius: '20px', padding: '1.8rem' }}>
-              <h4 style={{ fontWeight: 700, color: 'white', fontSize: '0.95rem', marginBottom: '1rem' }}>💡 Listing Tips</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: 'white', fontSize: '0.95rem', marginBottom: '1rem' }}>
+                <Lightbulb size={16} color="var(--orange)" /> Listing Tips
+              </h4>
               {['Upload clear photos of the property', 'Use a clear descriptive title', 'Be honest about the distance from AFIT', 'List all available amenities', 'Write a detailed description', 'Set a fair competitive price'].map((tip, i) => (
                 <div key={i} style={{ display: 'flex', gap: '0.6rem', marginBottom: '0.6rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)' }}>
-                  <span style={{ color: 'var(--orange)', fontWeight: 700 }}>✓</span>{tip}
+                  <CheckCircle size={14} color="var(--orange)" style={{ flexShrink: 0, marginTop: '1px' }} />{tip}
                 </div>
               ))}
             </div>
             <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.5rem', border: '1px solid var(--beige-dark)' }}>
-              <h4 style={{ fontWeight: 700, color: 'var(--blue)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>📋 After Submitting</h4>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: 'var(--blue)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                <ClipboardList size={16} /> After Submitting
+              </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Your listing will be reviewed and go live within 24 hours.</p>
             </div>
           </div>

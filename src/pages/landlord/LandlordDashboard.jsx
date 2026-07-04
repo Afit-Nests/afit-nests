@@ -2,15 +2,16 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, CheckCircle, Clock, BadgeCheck } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
-  { to: '/landlord/dashboard', icon: '📊', label: 'Dashboard', active: true },
-  { to: '/landlord/chats', icon: '💬', label: 'Chats' },
-  { to: '/landlord/listings', icon: '🏠', label: 'My Listings' },
-  { to: '/landlord/listings/create', icon: '➕', label: 'Add Listing' },
-  { to: '/landlord/viewings', icon: '📅', label: 'Viewing Requests' },
-  { to: '/landlord/profile', icon: '👤', label: 'Profile' },
+  { to: '/landlord/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', active: true },
+  { to: '/landlord/chats', icon: <MessageSquare size={18} />, label: 'Chats' },
+  { to: '/landlord/listings', icon: <Home size={18} />, label: 'My Listings' },
+  { to: '/landlord/listings/create', icon: <Plus size={18} />, label: 'Add Listing' },
+  { to: '/landlord/viewings', icon: <Calendar size={18} />, label: 'Viewing Requests' },
+  { to: '/landlord/profile', icon: <User size={18} />, label: 'Profile' },
 ]
 
 export default function LandlordDashboard() {
@@ -63,15 +64,14 @@ export default function LandlordDashboard() {
         </Link>
         {SIDEBAR_LINKS.map(item => (
           <Link key={item.to} to={item.to} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            display: 'flex', alignItems: 'center', gap: '0.7rem',
             padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none',
             background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent',
             color: item.active ? 'white' : 'rgba(255,255,255,0.6)',
             fontSize: '0.88rem', fontWeight: item.active ? 600 : 400,
           }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>{item.icon} {item.label}</span>
+            {item.icon} {item.label}
           </Link>
-          
         ))}
         <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
@@ -80,13 +80,13 @@ export default function LandlordDashboard() {
             </div>
             <div style={{ overflow: 'hidden' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.full_name}</div>
-              <div style={{ fontSize: '0.72rem', color: profile?.verified ? '#4ade80' : 'rgba(255,255,255,0.5)' }}>
-                {profile?.verified ? '✅ Verified' : '⏳ Pending verification'}
+              <div style={{ fontSize: '0.72rem', color: profile?.verified ? '#4ade80' : 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                {profile?.verified ? <><BadgeCheck size={12} /> Verified</> : <><Clock size={12} /> Pending verification</>}
               </div>
             </div>
           </div>
-          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ background: 'none', border: 'none', cursor: 'pointer', marginTop: '0.8rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>
-            🚪 Logout
+          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', marginTop: '0.8rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>
+            <LogOut size={14} /> Logout
           </button>
         </div>
       </div>
@@ -105,13 +105,13 @@ export default function LandlordDashboard() {
         {/* Stats */}
         <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
           {[
-            { icon: '🏠', label: 'My Listings', value: stats.listings, link: '/landlord/listings' },
-            { icon: '📅', label: 'Pending Viewings', value: stats.pendingViewings, link: '/landlord/viewings', urgent: stats.pendingViewings > 0 },
-            { icon: '💬', label: 'Active Chats', value: stats.chats, link: '/landlord/chats' },
+            { icon: <Home size={28} color="var(--blue)" />, label: 'My Listings', value: stats.listings, link: '/landlord/listings' },
+            { icon: <Calendar size={28} color={stats.pendingViewings > 0 ? 'var(--orange)' : 'var(--blue)'} />, label: 'Pending Viewings', value: stats.pendingViewings, link: '/landlord/viewings', urgent: stats.pendingViewings > 0 },
+            { icon: <MessageSquare size={28} color="var(--blue)" />, label: 'Active Chats', value: stats.chats, link: '/landlord/chats' },
           ].map(stat => (
             <Link key={stat.label} to={stat.link} style={{ textDecoration: 'none' }}>
               <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.5rem', border: `1px solid ${stat.urgent ? 'rgba(249,115,22,0.3)' : 'var(--beige-dark)'}`, height: '100%' }}>
-                <div style={{ fontSize: '1.8rem', marginBottom: '0.8rem' }}>{stat.icon}</div>
+                <div style={{ marginBottom: '0.8rem' }}>{stat.icon}</div>
                 <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '2rem', fontWeight: 900, color: stat.urgent ? 'var(--orange)' : 'var(--blue)', lineHeight: 1 }}>
                   {stat.value}
                 </div>
@@ -131,7 +131,7 @@ export default function LandlordDashboard() {
             <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--blue)', marginBottom: '1.2rem' }}>Recent Student Inquiries</h3>
             {recentChats.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>💬</div>
+                <MessageSquare size={32} style={{ margin: '0 auto 0.8rem', opacity: 0.4 }} />
                 <p style={{ fontSize: '0.88rem' }}>No inquiries yet</p>
                 <p style={{ fontSize: '0.78rem', marginTop: '0.3rem' }}>Students will contact you once your listings are live</p>
               </div>
@@ -158,10 +158,10 @@ export default function LandlordDashboard() {
               <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--blue)', marginBottom: '1.2rem' }}>Quick Actions</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                 <Link to="/landlord/listings/create" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--orange)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem' }}>
-                  ➕ Add New Listing
+                  <Plus size={16} /> Add New Listing
                 </Link>
                 <Link to="/landlord/viewings" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                  <span>📅 Viewing Requests</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}><Calendar size={16} /> Viewing Requests</span>
                   {stats.pendingViewings > 0 && (
                     <span style={{ background: 'var(--orange)', color: 'white', padding: '0.1rem 0.5rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700 }}>
                       {stats.pendingViewings}
@@ -169,14 +169,14 @@ export default function LandlordDashboard() {
                   )}
                 </Link>
                 <Link to="/landlord/listings" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                  🏠 My Listings
+                  <Home size={16} /> My Listings
                 </Link>
               </div>
             </div>
 
             {!profile?.verified && (
               <div style={{ background: 'rgba(249,115,22,0.08)', borderRadius: '20px', padding: '1.5rem', border: '1px solid rgba(249,115,22,0.2)' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⏳</div>
+                <Clock size={24} color="var(--orange)" style={{ marginBottom: '0.5rem' }} />
                 <h4 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--orange)', marginBottom: '0.4rem' }}>Verification Pending</h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>Your account is being reviewed by the AFIT Nests team.</p>
               </div>

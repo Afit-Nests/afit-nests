@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { Menu, X, LogOut } from 'lucide-react'
 
 export default function MobileNav({ links }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -9,7 +10,6 @@ export default function MobileNav({ links }) {
 
   return (
     <>
-      {/* Only visible on mobile via CSS */}
       <div className="mobile-nav-wrapper" style={{ display: 'none' }}>
 
         {/* Top Bar */}
@@ -26,9 +26,9 @@ export default function MobileNav({ links }) {
           </Link>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', fontSize: '1.5rem' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {menuOpen ? '✕' : '☰'}
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
@@ -65,9 +65,9 @@ export default function MobileNav({ links }) {
               </div>
               <button
                 onClick={async () => { await signOut(); window.location.href = '/' }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.88rem', paddingLeft: '1rem' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.88rem', paddingLeft: '1rem' }}
               >
-                🚪 Logout
+                <LogOut size={14} /> Logout
               </button>
             </div>
           </div>
