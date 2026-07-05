@@ -38,7 +38,7 @@ import LandlordChats from './pages/landlord/LandlordChats'
 import LandlordProfile from './pages/landlord/LandlordProfile'
 
 // 🔧 MAINTENANCE MODE - set to true to show maintenance page
-const MAINTENANCE_MODE = false
+const MAINTENANCE_MODE = true
 
 function App() {
   if (MAINTENANCE_MODE) {

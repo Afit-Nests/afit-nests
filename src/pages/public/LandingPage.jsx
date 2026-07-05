@@ -45,7 +45,7 @@ export default function LandingPage() {
             marginBottom: '1.5rem',
           }}>
             Find Your <span style={{ color: 'var(--orange)' }}>Perfect</span><br />
-            Home in Barkallahu and Agric Quarters.
+            Home in Barkallahu.
           </h1>
 
           <p style={{
