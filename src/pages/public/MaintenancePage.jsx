@@ -1,3 +1,5 @@
+import { Wrench } from 'lucide-react'
+
 export default function MaintenancePage() {
   return (
     <div style={{
@@ -20,7 +22,9 @@ export default function MaintenancePage() {
           AFIT <span style={{ color: 'var(--orange)' }}>Nests</span>
         </div>
 
-        <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🔧</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+          <Wrench size={64} color="var(--blue)" />
+        </div>
 
         <h1 style={{
           fontFamily: 'Playfair Display, serif',
@@ -64,10 +68,7 @@ export default function MaintenancePage() {
           Maintenance in progress
         </div>
 
-        <p style={{
-          fontSize: '0.82rem',
-          color: 'var(--text-muted)',
-        }}>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
           Questions? Contact us on WhatsApp
         </p>
       </div>
