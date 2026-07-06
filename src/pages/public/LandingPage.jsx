@@ -1,9 +1,38 @@
 import { Link } from 'react-router-dom'
-import { Search, MessageSquare, Calendar, Home, CheckCircle, Ban, Lock, BadgeCheck } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, MessageSquare, Calendar, Home, CheckCircle, Ban, BadgeCheck, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
 
 export default function LandingPage() {
+  const [listings, setListings] = useState([])
+  const [currentListing, setCurrentListing] = useState(0)
+
+  useEffect(() => {
+    fetchListings()
+  }, [])
+
+  useEffect(() => {
+    if (listings.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentListing(prev => (prev + 1) % listings.length)
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [listings])
+
+  const fetchListings = async () => {
+    const { data } = await supabase
+      .from('listings')
+      .select(`*, profiles (full_name, verified)`)
+      .eq('available', true)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    if (data && data.length > 0) setListings(data)
+  }
+
+  const listing = listings[currentListing]
+
   return (
     <div>
       <Navbar />
@@ -12,7 +41,7 @@ export default function LandingPage() {
       <section className="hero-grid" style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', padding: '7rem 5% 4rem', gap: '3rem' }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--blue)', color: 'white', fontSize: '0.78rem', fontWeight: 600, padding: '0.4rem 1rem', borderRadius: '50px', marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            ✈️ Built for <span style={{ color: 'var(--orange)' }}>&nbsp;AFIT Students</span>
+           Built for <span style={{ color: 'var(--orange)' }}>&nbsp;AFIT Students</span>
           </div>
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: 'clamp(2.4rem, 4vw, 3.6rem)', fontWeight: 900, lineHeight: 1.1, color: 'var(--blue-dark)', marginBottom: '1.5rem' }}>
             Find Your <span style={{ color: 'var(--orange)' }}>Perfect</span><br />Home in Barkallahu.
@@ -42,30 +71,83 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Hero Card */}
+        {/* Hero Carousel Card */}
         <div style={{ display: 'flex', justifyContent: 'center', position: 'relative' }}>
           <div style={{ background: 'var(--card)', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 24px 80px rgba(15,31,61,0.15)', width: '100%', maxWidth: '400px' }}>
-            <div style={{ height: '220px', background: 'linear-gradient(135deg, var(--blue) 0%, #2A5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <Home size={80} color="rgba(255,255,255,0.2)" />
+
+            {/* Image */}
+            <div style={{ height: '220px', background: 'linear-gradient(135deg, var(--blue) 0%, #2A5298 100%)', position: 'relative', overflow: 'hidden' }}>
+              {listing?.photos && listing.photos.length > 0 ? (
+                <img src={listing.photos[0]} alt={listing.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Home size={80} color="rgba(255,255,255,0.2)" />
+                </div>
+              )}
+
+              {/* Available badge */}
               <div style={{ position: 'absolute', top: '1rem', left: '1rem', background: 'var(--orange)', color: 'white', fontSize: '0.72rem', fontWeight: 700, padding: '0.3rem 0.8rem', borderRadius: '50px', textTransform: 'uppercase' }}>
                 Available Now
               </div>
+
+              {/* Carousel controls */}
+              {listings.length > 1 && (
+                <>
+                  <button onClick={() => setCurrentListing(p => p === 0 ? listings.length - 1 : p - 1)} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.35)', color: 'white', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button onClick={() => setCurrentListing(p => p === listings.length - 1 ? 0 : p + 1)} style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.35)', color: 'white', border: 'none', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ChevronRight size={16} />
+                  </button>
+
+                  {/* Dots */}
+                  <div style={{ position: 'absolute', bottom: '0.7rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.35rem' }}>
+                    {listings.map((_, i) => (
+                      <button key={i} onClick={() => setCurrentListing(i)} style={{ width: i === currentListing ? '18px' : '7px', height: '7px', borderRadius: '50px', background: i === currentListing ? 'white' : 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Card content */}
             <div style={{ padding: '1.4rem' }}>
-              <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.5rem', fontWeight: 900, color: 'var(--blue)', marginBottom: '0.3rem' }}>
-                ₦250,000 <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-muted)' }}>/ year</span>
-              </div>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.8rem' }}>2-Bedroom Self-Contain — Barkallahu</div>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Home size={13} /> 2 Rooms</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CheckCircle size={13} /> Bathroom</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CheckCircle size={13} /> Power</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1.2rem', paddingTop: '1rem', borderTop: '1px solid var(--beige-dark)' }}>
+              {listing ? (
+                <>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--orange)', marginBottom: '0.3rem' }}>
+                    {listing.type}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {listing.title}
+                  </div>
+                  <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', fontWeight: 900, color: 'var(--blue)', marginBottom: '0.5rem' }}>
+                    ₦{listing.price.toLocaleString()}
+                    <span style={{ fontFamily: 'DM Sans, sans-serif', fontSize: '0.82rem', fontWeight: 400, color: 'var(--text-muted)' }}> / year</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
+                    <MapPin size={12} /> Barkallahu · {listing.distance} mins from AFIT
+                  </div>
+                  {listing.amenities && listing.amenities.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+                      {listing.amenities.slice(0, 3).map(a => (
+                        <span key={a} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          <CheckCircle size={11} color="var(--orange)" /> {a}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Loading listings...
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.8rem', paddingTop: '1rem', borderTop: '1px solid var(--beige-dark)' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#16A34A', fontWeight: 600 }}>
                   <BadgeCheck size={14} /> Verified Landlord
                 </span>
-                <Link to="/listings" style={{ background: 'var(--blue)', color: 'white', padding: '0.5rem 1.1rem', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none' }}>
+                <Link to={listing ? `/listings/${listing.id}` : '/listings'} style={{ background: 'var(--blue)', color: 'white', padding: '0.5rem 1.1rem', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none' }}>
                   View Details
                 </Link>
               </div>
