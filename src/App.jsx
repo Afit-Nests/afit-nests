@@ -37,6 +37,10 @@ import LandlordChats from './pages/landlord/LandlordChats'
 
 import LandlordProfile from './pages/landlord/LandlordProfile'
 
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
+
+
 // 🔧 MAINTENANCE MODE - set to true to show maintenance page
 const MAINTENANCE_MODE = false
 
@@ -53,6 +57,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/listings" element={<ListingsPage />} />
         <Route path="/listings/:id" element={<SingleListingPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* Auth Routes */}
         <Route path="/student/login" element={<StudentLogin />} />

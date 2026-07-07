@@ -87,7 +87,7 @@ export default function StudentLogin() {
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <Link to="#" style={{ fontSize: '0.82rem', color: 'var(--orange)', fontWeight: 600, textDecoration: 'none' }}>Forgot Password?</Link>
+              <Link to="/forgot-password" style={{ fontSize: '0.82rem', color: 'var(--orange)', fontWeight: 600, textDecoration: 'none' }}>Forgot Password?</Link>
             </div>
             <button onClick={handleSubmit} disabled={loading} style={{ background: loading ? 'var(--text-muted)' : 'var(--orange)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '1rem', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: loading ? 'none' : '0 4px 20px rgba(249,115,22,0.35)' }}>
               {loading ? 'Signing In...' : 'Sign In'}
