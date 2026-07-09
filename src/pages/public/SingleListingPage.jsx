@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { useAuth } from '../../context/AuthContext'
-import { initializePayment, createPaymentRecord } from '../../lib/paystack'
+import { startAccommodationPayment } from '../../lib/paystack'
 import { MapPin, MessageSquare, Calendar, CreditCard, BadgeCheck, Clock, Circle, ChevronLeft, ChevronRight, Home, CheckCircle, Zap, Droplets, ShowerHead, ChefHat, Car, Lock, Fence } from 'lucide-react'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
@@ -35,7 +35,7 @@ export default function SingleListingPage() {
   useEffect(() => { fetchListing() }, [id])
 
   const fetchListing = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('listings')
       .select(`*, profiles (id, full_name, verified, phone)`)
       .eq('id', id)
@@ -47,9 +47,9 @@ export default function SingleListingPage() {
   const handleStartChat = async () => {
     if (!user) { navigate('/student/login'); return }
     if (profile?.role !== 'student') { alert('Only students can start a chat'); return }
-    const { data: existingChat } = await supabase.from('chats').select('id').eq('student_id', profile.id).eq('listing_id', listing.id).single()
+    const { data: existingChat } = await backend.from('chats').select('id').eq('student_id', profile.id).eq('listing_id', listing.id).single()
     if (existingChat) { navigate(`/student/chats?chat=${existingChat.id}`); return }
-    const { data: newChat, error } = await supabase.from('chats').insert({ student_id: profile.id, landlord_id: listing.landlord_id, listing_id: listing.id }).select().single()
+    const { data: newChat, error } = await backend.from('chats').insert({ student_id: profile.id, landlord_id: listing.landlord_id, listing_id: listing.id }).select().single()
     if (!error) navigate(`/student/chats?chat=${newChat.id}`)
   }
 
@@ -62,7 +62,7 @@ export default function SingleListingPage() {
   const handleSubmitViewing = async () => {
     if (!viewingForm.date || !viewingForm.time) { alert('Please select a date and time'); return }
     setViewingLoading(true)
-    const { error } = await supabase.from('viewings').insert({ student_id: profile.id, landlord_id: listing.landlord_id, listing_id: listing.id, date: viewingForm.date, time: viewingForm.time, message: viewingForm.message, status: 'pending' })
+    const { error } = await backend.from('viewings').insert({ student_id: profile.id, landlord_id: listing.landlord_id, listing_id: listing.id, date: viewingForm.date, time: viewingForm.time, message: viewingForm.message, status: 'pending' })
     if (!error) {
       setViewingSuccess(true)
       setTimeout(() => { setShowViewingModal(false); setViewingSuccess(false); setViewingForm({ date: '', time: '', message: '' }) }, 2000)
@@ -73,15 +73,16 @@ export default function SingleListingPage() {
   const handlePayment = async () => {
     if (!user) { navigate('/student/login'); return }
     if (profile?.role !== 'student') { alert('Only students can pay for accommodation'); return }
-    const { data: currentListing } = await supabase.from('listings').select('status').eq('id', listing.id).single()
-    if (currentListing?.status !== 'available') { alert('This property is no longer available'); return }
     setPaymentLoading(true)
     try {
-      const payment = await createPaymentRecord(listing.id, profile.id, listing.landlord_id, listing.price)
-      await initializePayment(profile.email || user.email, listing.price, { listing_id: listing.id, listing_title: listing.title, student_id: profile.id, payment_reference: payment.payment_reference })
+      await startAccommodationPayment({
+        listing,
+        student: profile,
+        email: profile.email || user.email,
+      })
       await fetchListing()
     } catch (error) {
-      alert('Payment failed. Please try again.')
+      alert(error.message || 'Payment failed. Please try again.')
     } finally {
       setPaymentLoading(false)
     }

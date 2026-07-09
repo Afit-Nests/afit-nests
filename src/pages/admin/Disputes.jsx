@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, LogOut, Send, CheckCircle, Shield, MousePointerClick } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -25,7 +25,7 @@ export default function Disputes() {
   useEffect(() => { fetchDisputes() }, [])
 
   const fetchDisputes = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('disputes')
       .select(`*, profiles!disputes_student_id_fkey (full_name, matric_number), landlord:profiles!disputes_landlord_id_fkey (full_name), listings (title)`)
       .order('created_at', { ascending: false })
@@ -34,7 +34,7 @@ export default function Disputes() {
   }
 
   const fetchMessages = async (disputeId) => {
-    const { data } = await supabase.from('dispute_messages').select('*').eq('dispute_id', disputeId).order('created_at', { ascending: true })
+    const { data } = await backend.from('dispute_messages').select('*').eq('dispute_id', disputeId).order('created_at', { ascending: true })
     return data || []
   }
 
@@ -44,7 +44,7 @@ export default function Disputes() {
   }
 
   const handleResolve = async (id) => {
-    const { error } = await supabase.from('disputes').update({ status: 'resolved' }).eq('id', id)
+    const { error } = await backend.from('disputes').update({ status: 'resolved' }).eq('id', id)
     if (!error) {
       setDisputes(disputes.map(d => d.id === id ? { ...d, status: 'resolved' } : d))
       setSelected(prev => prev?.id === id ? { ...prev, status: 'resolved' } : prev)
@@ -53,7 +53,7 @@ export default function Disputes() {
 
   const handleSendMessage = async () => {
     if (!adminMessage.trim() || !selected) return
-    const { error } = await supabase.from('dispute_messages').insert({ dispute_id: selected.id, sender_id: null, sender_role: 'admin', text: adminMessage })
+    const { error } = await backend.from('dispute_messages').insert({ dispute_id: selected.id, sender_id: null, sender_role: 'admin', text: adminMessage })
     if (!error) {
       const messages = await fetchMessages(selected.id)
       setSelected(prev => ({ ...prev, messages }))

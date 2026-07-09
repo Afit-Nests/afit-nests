@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, CheckCircle, XCircle, Clock, Phone } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -31,7 +31,7 @@ export default function ViewingRequests() {
   }, [profile])
 
   const fetchViewings = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('viewings')
       .select(`*, listings (title, type), profiles!viewings_student_id_fkey (full_name, matric_number, phone)`)
       .eq('landlord_id', profile.id)
@@ -41,12 +41,12 @@ export default function ViewingRequests() {
   }
 
   const handleConfirm = async (id) => {
-    const { error } = await supabase.from('viewings').update({ status: 'confirmed' }).eq('id', id)
+    const { error } = await backend.from('viewings').update({ status: 'confirmed' }).eq('id', id)
     if (!error) setViewings(viewings.map(v => v.id === id ? { ...v, status: 'confirmed' } : v))
   }
 
   const handleDecline = async (id) => {
-    const { error } = await supabase.from('viewings').update({ status: 'declined' }).eq('id', id)
+    const { error } = await backend.from('viewings').update({ status: 'declined' }).eq('id', id)
     if (!error) setViewings(viewings.map(v => v.id === id ? { ...v, status: 'declined' } : v))
   }
 

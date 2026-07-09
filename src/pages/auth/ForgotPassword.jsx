@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import { ArrowLeft, Mail, CheckCircle, AlertCircle } from 'lucide-react'
 
 export default function ForgotPassword() {
@@ -12,10 +12,9 @@ export default function ForgotPassword() {
   const handleSubmit = async () => {
     if (!email) { setError('Please enter your email address'); return }
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-    if (error) {
+    try {
+      await api.auth.forgotPassword(email)
+    } catch (error) {
       setError(error.message)
       setLoading(false)
       return

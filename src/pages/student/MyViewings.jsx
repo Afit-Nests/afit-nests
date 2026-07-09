@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import MobileNav from '../../components/common/MobileNav'
 import { Home, MessageSquare, Calendar, User, Search, LogOut, MapPin, Clock, CheckCircle, XCircle, AlertCircle, CheckCheck } from 'lucide-react'
 
@@ -30,7 +30,7 @@ export default function MyViewings() {
   }, [profile])
 
   const fetchViewings = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('viewings')
       .select(`
         *,

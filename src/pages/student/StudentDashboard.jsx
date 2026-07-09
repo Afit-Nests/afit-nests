@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import MobileNav from '../../components/common/MobileNav'
 import { MessageSquare, Calendar, Home, Search, User, LogOut, Lightbulb } from 'lucide-react'
 
@@ -25,9 +25,9 @@ export default function StudentDashboard() {
 
   const fetchData = async () => {
     const [chatsRes, viewingsRes, listingsRes] = await Promise.all([
-      supabase.from('chats').select('id', { count: 'exact' }).eq('student_id', profile.id),
-      supabase.from('viewings').select('id', { count: 'exact' }).eq('student_id', profile.id),
-      supabase.from('listings').select('*').eq('available', true).order('created_at', { ascending: false }).limit(3),
+      backend.from('chats').select('id', { count: 'exact' }).eq('student_id', profile.id),
+      backend.from('viewings').select('id', { count: 'exact' }).eq('student_id', profile.id),
+      backend.from('listings').select('*').eq('available', true).order('created_at', { ascending: false }).limit(3),
     ])
 
     setStats({

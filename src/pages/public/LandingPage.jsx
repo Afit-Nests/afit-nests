@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Search, MessageSquare, Calendar, Home, CheckCircle, Ban, BadgeCheck, ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
 
@@ -22,7 +22,7 @@ export default function LandingPage() {
   }, [listings])
 
   const fetchListings = async () => {
-    const { data } = await supabase
+    const { data } = await backend
       .from('listings')
       .select(`*, profiles (full_name, verified)`)
       .eq('available', true)

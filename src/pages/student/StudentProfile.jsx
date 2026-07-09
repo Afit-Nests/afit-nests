@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Calendar, User, Search, LogOut, Lock, CheckCircle, AlertCircle } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -44,7 +44,7 @@ export default function StudentProfile() {
     if (!matricLocked) {
       updates.matric_number = form.matricNumber
     }
-    const { error } = await supabase.from('profiles').update(updates).eq('id', profile.id)
+    const { error } = await backend.from('profiles').update(updates).eq('id', profile.id)
     if (error) {
       setError('Failed to save. Please try again.')
     } else {

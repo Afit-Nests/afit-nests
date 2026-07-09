@@ -9,10 +9,17 @@ lerna-debug.log*
 
 node_modules
 dist
+server/uploads
+vite-dev.pid
+vite-dev-job.id
 dist-ssr
+.env
+.env.*
+!.env.example
 *.local
 
 # Editor directories and files
+.vs/
 .vscode/*
 !.vscode/extensions.json
 .idea

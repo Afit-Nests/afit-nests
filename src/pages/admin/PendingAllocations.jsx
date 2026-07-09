@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
-import { confirmAccommodationAllocation, rejectTransaction } from '../../lib/paystack'
+import { confirmAccommodationAllocation, getPendingAllocations, rejectTransaction } from '../../lib/paystack'
 import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, LogOut, CheckCircle, XCircle } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -43,12 +42,7 @@ export default function PendingAllocations() {
 
   const fetchAllocations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('payments')
-        .select(`*, listings (id, title, price, photos, profiles!listings_landlord_id_fkey (full_name, email)), profiles!payments_student_id_fkey (full_name, email)`)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-      if (error) throw error
+      const data = await getPendingAllocations()
       setAllocations(data)
     } catch (error) {
       console.error('Error fetching allocations:', error)

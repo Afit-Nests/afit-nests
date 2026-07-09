@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, Camera, X, CheckCircle, Lightbulb, ClipboardList } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -50,10 +50,10 @@ export default function CreateListing() {
       const file = photos[i]
       const ext = file.name.split('.').pop()
       const path = `${listingId}/${Date.now()}_${i}.${ext}`
-      const { data, error } = await supabase.storage.from('listings').upload(path, file)
+      const { data, error } = await backend.storage.from('listings').upload(path, file)
       console.log('Upload result:', data, error)
       if (!error) {
-        const { data: urlData } = supabase.storage.from('listings').getPublicUrl(path)
+        const { data: urlData } = backend.storage.from('listings').getPublicUrl(path)
         urls.push(urlData.publicUrl)
       }
     }
@@ -66,7 +66,7 @@ export default function CreateListing() {
       return
     }
     setSubmitted(true)
-    const { data: listing, error } = await supabase.from('listings').insert({
+    const { data: listing, error } = await backend.from('listings').insert({
       landlord_id: profile.id,
       title: form.title, type: form.type,
       price: Number(form.price), distance: Number(form.distance),
@@ -78,7 +78,7 @@ export default function CreateListing() {
 
     if (photos.length > 0) {
       const photoUrls = await uploadPhotos(listing.id)
-      await supabase.from('listings').update({ photos: photoUrls }).eq('id', listing.id)
+      await backend.from('listings').update({ photos: photoUrls }).eq('id', listing.id)
     }
 
     setUploadProgress('')

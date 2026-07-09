@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, Users, LogOut, CheckCircle, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, Users, LogOut, Database } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
   { to: '/admin/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', active: true },
+  { to: '/admin/cms', icon: <Database size={18} />, label: 'All-in-one CMS' },
   { to: '/admin/verifications', icon: <BadgeCheck size={18} />, label: 'Verifications' },
   { to: '/admin/pending-allocations', icon: <Clock size={18} />, label: 'Pending Allocations' },
   { to: '/admin/disputes', icon: <AlertTriangle size={18} />, label: 'Disputes' },
@@ -22,10 +23,10 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     const [listingsRes, verificationsRes, disputesRes, usersRes] = await Promise.all([
-      supabase.from('listings').select('id', { count: 'exact' }).eq('available', true),
-      supabase.from('profiles').select('id', { count: 'exact' }).eq('role', 'landlord').eq('verified', false),
-      supabase.from('disputes').select('id', { count: 'exact' }).eq('status', 'open'),
-      supabase.from('profiles').select('id', { count: 'exact' }),
+      backend.from('listings').select('id', { count: 'exact' }).eq('available', true),
+      backend.from('profiles').select('id', { count: 'exact' }).eq('role', 'landlord').eq('verified', false),
+      backend.from('disputes').select('id', { count: 'exact' }).eq('status', 'open'),
+      backend.from('profiles').select('id', { count: 'exact' }),
     ])
     setStats({
       listings: listingsRes.count || 0,
@@ -87,6 +88,9 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <Link to="/admin/verifications" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--orange)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem' }}>
                 <BadgeCheck size={16} /> Review Verifications
+              </Link>
+              <Link to="/admin/cms" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--blue)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem' }}>
+                <Database size={16} /> Open All-in-one CMS
               </Link>
               <Link to="/admin/pending-allocations" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
                 <Clock size={16} /> Pending Allocations

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, CheckCircle, Clock, BadgeCheck } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -26,9 +26,9 @@ export default function LandlordDashboard() {
 
   const fetchData = async () => {
     const [listingsRes, viewingsRes, chatsRes] = await Promise.all([
-      supabase.from('listings').select('id', { count: 'exact' }).eq('landlord_id', profile.id),
-      supabase.from('viewings').select('id', { count: 'exact' }).eq('landlord_id', profile.id).eq('status', 'pending'),
-      supabase.from('chats').select(`*, listings (title), profiles!chats_student_id_fkey (full_name)`).eq('landlord_id', profile.id).order('created_at', { ascending: false }).limit(3),
+      backend.from('listings').select('id', { count: 'exact' }).eq('landlord_id', profile.id),
+      backend.from('viewings').select('id', { count: 'exact' }).eq('landlord_id', profile.id).eq('status', 'pending'),
+      backend.from('chats').select(`*, listings (title), profiles!chats_student_id_fkey (full_name)`).eq('landlord_id', profile.id).order('created_at', { ascending: false }).limit(3),
     ])
     setStats({
       listings: listingsRes.count || 0,

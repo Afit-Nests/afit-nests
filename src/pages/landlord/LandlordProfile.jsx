@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, Camera, Lock, CheckCircle, AlertCircle, BadgeCheck, Clock } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -39,11 +39,11 @@ export default function LandlordProfile() {
     setUploadingAvatar(true)
     const ext = file.name.split('.').pop()
     const path = `${profile.id}/avatar.${ext}`
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    const { error: uploadError } = await backend.storage.from('avatars').upload(path, file, { upsert: true })
     if (!uploadError) {
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const { data } = backend.storage.from('avatars').getPublicUrl(path)
       const url = data.publicUrl
-      await supabase.from('profiles').update({ avatar_url: url }).eq('id', profile.id)
+      await backend.from('profiles').update({ avatar_url: url }).eq('id', profile.id)
       setAvatarUrl(url)
     }
     setUploadingAvatar(false)
@@ -51,7 +51,7 @@ export default function LandlordProfile() {
 
   const handleSave = async () => {
     setSaving(true)
-    const { error } = await supabase.from('profiles').update({ full_name: form.fullName, phone: form.phone, address: form.address }).eq('id', profile.id)
+    const { error } = await backend.from('profiles').update({ full_name: form.fullName, phone: form.phone, address: form.address }).eq('id', profile.id)
     if (error) {
       setError('Failed to save. Please try again.')
     } else {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, BadgeCheck, Circle, Clock } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -24,14 +24,14 @@ export default function MyListings() {
   }, [profile])
 
   const fetchListings = async () => {
-    const { data, error } = await supabase.from('listings').select('*').eq('landlord_id', profile.id).order('created_at', { ascending: false })
+    const { data, error } = await backend.from('listings').select('*').eq('landlord_id', profile.id).order('created_at', { ascending: false })
     if (!error) setListings(data)
     setLoading(false)
   }
 
   const toggleAvailability = async (id, currentStatus) => {
     const newStatus = currentStatus === 'available' ? 'occupied' : 'available'
-    const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', id)
+    const { error } = await backend.from('listings').update({ status: newStatus }).eq('id', id)
     if (!error) setListings(listings.map(l => l.id === id ? { ...l, status: newStatus } : l))
   }
 

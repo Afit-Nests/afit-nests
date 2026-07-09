@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/apiClient'
 import { Eye, EyeOff, CheckCircle, AlertCircle, Lock } from 'lucide-react'
 
 export default function ResetPassword() {
@@ -14,11 +14,9 @@ export default function ResetPassword() {
   const [validSession, setValidSession] = useState(false)
 
   useEffect(() => {
-    // Supabase handles the token from the URL automatically
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setValidSession(true)
-      else setError('Invalid or expired reset link. Please request a new one.')
-    })
+    const token = new URLSearchParams(window.location.search).get('token')
+    if (token) setValidSession(true)
+    else setError('Invalid or expired reset link. Please request a new one.')
   }, [])
 
   const handleSubmit = async () => {
@@ -27,8 +25,10 @@ export default function ResetPassword() {
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
 
     setLoading(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) {
+    const token = new URLSearchParams(window.location.search).get('token')
+    try {
+      await api.auth.resetPassword(token, password)
+    } catch (error) {
       setError(error.message)
       setLoading(false)
       return

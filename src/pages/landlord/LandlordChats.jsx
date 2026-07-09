@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, Send, Lock, BadgeCheck, Clock } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -39,10 +39,11 @@ export default function LandlordChats() {
 
   useEffect(() => {
     if (selectedChat) {
+      const chatFilter = `chat_id=eq.${encodeURIComponent(selectedChat.id)}`
       fetchMessages(selectedChat.id)
-      channelRef.current = supabase
+      channelRef.current = backend
         .channel(`landlord_messages:${selectedChat.id}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` }, payload => {
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: chatFilter }, payload => {
           setMessages(prev => [...prev, payload.new])
           setIsTyping(false)
         })
@@ -54,14 +55,14 @@ export default function LandlordChats() {
           }
         })
         .subscribe()
-      return () => supabase.removeChannel(channelRef.current)
+      return () => backend.removeChannel(channelRef.current)
     }
   }, [selectedChat])
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const fetchChats = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('chats')
       .select(`*, listings (title, type), profiles!chats_student_id_fkey (full_name, matric_number)`)
       .eq('landlord_id', profile.id)
@@ -74,7 +75,7 @@ export default function LandlordChats() {
   }
 
   const fetchMessages = async (chatId) => {
-    const { data, error } = await supabase.from('messages').select('*, profiles (full_name, role)').eq('chat_id', chatId).order('created_at', { ascending: true })
+    const { data, error } = await backend.from('messages').select('*, profiles (full_name, role)').eq('chat_id', chatId).order('created_at', { ascending: true })
     if (!error) setMessages(data)
   }
 
@@ -86,7 +87,7 @@ export default function LandlordChats() {
 
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedChat) return
-    const { error } = await supabase.from('messages').insert({ chat_id: selectedChat.id, sender_id: profile.id, text: newMessage.trim() })
+    const { error } = await backend.from('messages').insert({ chat_id: selectedChat.id, sender_id: profile.id, text: newMessage.trim() })
     if (!error) setNewMessage('')
   }
 

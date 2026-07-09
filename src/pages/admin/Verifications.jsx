@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, LogOut, CheckCircle, XCircle, Phone, CreditCard, MapPin, MousePointerClick } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
@@ -24,18 +24,18 @@ export default function Verifications() {
   useEffect(() => { fetchLandlords() }, [])
 
   const fetchLandlords = async () => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('role', 'landlord').order('created_at', { ascending: false })
+    const { data, error } = await backend.from('profiles').select('*').eq('role', 'landlord').order('created_at', { ascending: false })
     if (!error) setLandlords(data || [])
     setLoading(false)
   }
 
   const handleApprove = async (id) => {
-    const { error } = await supabase.from('profiles').update({ verified: true }).eq('id', id)
+    const { error } = await backend.from('profiles').update({ verified: true }).eq('id', id)
     if (!error) { setLandlords(landlords.map(l => l.id === id ? { ...l, verified: true } : l)); setSelected(null) }
   }
 
   const handleReject = async (id) => {
-    const { error } = await supabase.from('profiles').update({ verified: false }).eq('id', id)
+    const { error } = await backend.from('profiles').update({ verified: false }).eq('id', id)
     if (!error) { setLandlords(landlords.map(l => l.id === id ? { ...l, verified: false } : l)); setSelected(null) }
   }
 

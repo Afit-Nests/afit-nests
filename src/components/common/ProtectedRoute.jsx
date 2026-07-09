@@ -32,6 +32,8 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   // Not logged in at all
   if (!user) {
+    if (allowedRoles?.includes('admin')) return <Navigate to="/admin/login" replace />
+    if (allowedRoles?.includes('landlord')) return <Navigate to="/landlord/login" replace />
     return <Navigate to="/student/login" replace />
   }
 

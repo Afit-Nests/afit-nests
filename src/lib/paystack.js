@@ -1,232 +1,117 @@
-import { supabase } from './supabase'
+import { api } from './apiClient'
 
-const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
+const FALLBACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
+const CURRENCY = 'NGN'
 
-/**
- * Initialize Paystack payment
- */
-export const initializePayment = async (email, amount, metadata) => {
+export const PAYMENT_STATUS = {
+  initialized: 'initialized',
+  paidPendingConfirmation: 'paid_pending_confirmation',
+  successful: 'successful',
+  cancelled: 'cancelled',
+  failed: 'failed',
+  refunded: 'refunded',
+}
+
+export const getPaymentGatewayConfig = () => ({
+  provider: 'paystack',
+  currency: CURRENCY,
+  isConfigured: Boolean(FALLBACK_PUBLIC_KEY),
+  publicKey: FALLBACK_PUBLIC_KEY,
+})
+
+const toKobo = (amount) => Math.round(Number(amount || 0) * 100)
+
+const ensureGatewayReady = (publicKey) => {
+  if (!publicKey) {
+    throw new Error('Paystack public key is not configured.')
+  }
+
+  if (!window.PaystackPop) {
+    throw new Error('Paystack payment script is not available. Please check your internet connection and reload.')
+  }
+}
+
+export const initializePayment = async ({ email, amount, reference, publicKey, metadata, onVerified, onClosed }) => {
+  ensureGatewayReady(publicKey)
+
+  if (!email) throw new Error('A valid student email is required before payment.')
+  if (toKobo(amount) <= 0) throw new Error('Payment amount must be greater than zero.')
+  if (!reference) throw new Error('Payment reference is missing.')
+
   const handler = window.PaystackPop.setup({
-    key: PAYSTACK_PUBLIC_KEY,
+    key: publicKey,
     email,
-    amount: amount * 100, // Paystack expects amount in kobo
-    currency: 'NGN',
+    amount: toKobo(amount),
+    currency: CURRENCY,
+    ref: reference,
     metadata,
-    onClose: () => {
-      console.log('Payment closed')
-    },
+    onClose: () => onClosed?.(),
     callback: async (response) => {
-      // Payment successful, verify on backend
-      await verifyPayment(response.reference)
+      const verifiedPayment = await verifyPayment(response.reference)
+      onVerified?.(verifiedPayment)
     },
   })
 
   handler.openIframe()
 }
 
-/**
- * Verify payment with Paystack
- * This should be called from a backend API in production
- * For now, we'll call it directly from the frontend
- */
+export const startAccommodationPayment = async ({ listing, student, email }) => {
+  if (!listing?.id) throw new Error('Listing is required before payment.')
+  if (!student?.id) throw new Error('Student profile is required before payment.')
+
+  const { payment, gateway } = await api.payments.initialize(listing.id)
+  const publicKey = gateway?.publicKey || FALLBACK_PUBLIC_KEY
+
+  await initializePayment({
+    email,
+    amount: payment.amount,
+    reference: payment.payment_reference,
+    publicKey,
+    metadata: {
+      listing_id: payment.listing_id,
+      student_id: student.id,
+      payment_id: payment.id,
+      payment_reference: payment.payment_reference,
+    },
+  })
+
+  return payment
+}
+
 export const verifyPayment = async (reference) => {
-  try {
-    // In production, this should call your backend API which then calls Paystack
-    // For now, we'll simulate verification by updating the payment record
-    const { data, error } = await supabase
-      .from('payments')
-      .update({
-        status: 'successful',
-        paid_at: new Date().toISOString(),
-        paystack_transaction_id: reference,
-      })
-      .eq('payment_reference', reference)
-      .select()
-      .single()
-
-    if (error) throw error
-
-    // Update listing status to pending_confirmation
-    await updateListingStatusAfterPayment(data.listing_id, data.student_id, reference)
-
-    return data
-  } catch (error) {
-    console.error('Payment verification error:', error)
-    throw error
-  }
+  const { payment } = await api.payments.paystackCallback(reference)
+  return payment
 }
 
-/**
- * Update listing status after successful payment with race condition protection
- */
-export const updateListingStatusAfterPayment = async (listingId, studentId, paymentReference) => {
-  try {
-    // Use a transaction-like approach with Supabase
-    // First, check if the listing is still available
-    const { data: listing, error: fetchError } = await supabase
-      .from('listings')
-      .select('status, reserved_by')
-      .eq('id', listingId)
-      .single()
+export const markPaymentCancelled = async () => null
 
-    if (fetchError) throw fetchError
-
-    // Race condition protection: Only update if still available
-    if (listing.status !== 'available') {
-      throw new Error('Listing is no longer available')
-    }
-
-    // Update listing status to pending_confirmation
-    const { error: updateError } = await supabase
-      .from('listings')
-      .update({
-        status: 'pending_confirmation',
-        reserved_by: studentId,
-        reserved_at: new Date().toISOString(),
-        payment_reference: paymentReference,
-      })
-      .eq('id', listingId)
-      .eq('status', 'available') // Additional race condition protection
-
-    if (updateError) throw updateError
-
-    return true
-  } catch (error) {
-    console.error('Error updating listing status:', error)
-    throw error
-  }
+export const confirmAccommodationAllocation = async (_listingId, paymentId) => {
+  await api.payments.confirm(paymentId)
+  return true
 }
 
-/**
- * Create payment record before initiating payment
- */
-export const createPaymentRecord = async (listingId, studentId, landlordId, amount) => {
-  try {
-    const paymentReference = `AFIT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`.toUpperCase()
-
-    const { data, error } = await supabase
-      .from('payments')
-      .insert({
-        listing_id: listingId,
-        student_id: studentId,
-        landlord_id: landlordId,
-        amount,
-        currency: 'NGN',
-        payment_reference: paymentReference,
-        status: 'pending',
-        payment_method: 'paystack',
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-
-    return data
-  } catch (error) {
-    console.error('Error creating payment record:', error)
-    throw error
-  }
+export const rejectTransaction = async (_listingId, paymentId) => {
+  await api.payments.reject(paymentId)
+  return true
 }
 
-/**
- * Confirm accommodation allocation (Admin action)
- */
-export const confirmAccommodationAllocation = async (listingId, paymentId) => {
-  try {
-    // Update listing status to occupied
-    const { error: listingError } = await supabase
-      .from('listings')
-      .update({
-        status: 'occupied',
-      })
-      .eq('id', listingId)
-
-    if (listingError) throw listingError
-
-    // Update payment status if needed
-    const { error: paymentError } = await supabase
-      .from('payments')
-      .update({
-        status: 'successful',
-      })
-      .eq('id', paymentId)
-
-    if (paymentError) throw paymentError
-
-    return true
-  } catch (error) {
-    console.error('Error confirming accommodation allocation:', error)
-    throw error
-  }
-}
-
-/**
- * Reject transaction (Admin action)
- */
-export const rejectTransaction = async (listingId, paymentId) => {
-  try {
-    // Reset listing status to available
-    const { error: listingError } = await supabase
-      .from('listings')
-      .update({
-        status: 'available',
-        reserved_by: null,
-        reserved_at: null,
-        payment_reference: null,
-      })
-      .eq('id', listingId)
-
-    if (listingError) throw listingError
-
-    // Update payment status to refunded
-    const { error: paymentError } = await supabase
-      .from('payments')
-      .update({
-        status: 'refunded',
-      })
-      .eq('id', paymentId)
-
-    if (paymentError) throw paymentError
-
-    return true
-  } catch (error) {
-    console.error('Error rejecting transaction:', error)
-    throw error
-  }
-}
-
-/**
- * Get pending allocations for admin dashboard
- */
 export const getPendingAllocations = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('payments')
-      .select(`
-        *,
-        listings (
-          id,
-          title,
-          price,
-          photos,
-          profiles!listings_landlord_id_fkey (
-            full_name,
-            email
-          )
-        ),
-        profiles!payments_student_id_fkey (
-          full_name,
-          email
-        )
-      `)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-
-    return data
-  } catch (error) {
-    console.error('Error fetching pending allocations:', error)
-    throw error
-  }
+  const { allocations } = await api.payments.pendingAllocations()
+  return (allocations || []).map(allocation => ({
+    ...allocation,
+    profiles: {
+      full_name: allocation.student_name,
+      email: allocation.student_email,
+    },
+    listings: {
+      id: allocation.listing_id,
+      title: allocation.listing_title,
+      price: allocation.listing_price,
+      photos: allocation.listing_photos || [],
+      profiles: {
+        full_name: allocation.landlord_name,
+        email: allocation.landlord_email,
+      },
+    },
+  }))
 }

@@ -6,7 +6,7 @@ import L from 'leaflet'
 import { Search, SlidersHorizontal, MapPin, Home } from 'lucide-react'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
-import { supabase } from '../../lib/supabase'
+import { backend } from '../../lib/personalBackendClient'
 
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -29,7 +29,7 @@ export default function ListingsPage() {
   useEffect(() => { fetchListings() }, [])
 
   const fetchListings = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await backend
       .from('listings')
       .select(`*, profiles (full_name, verified)`)
       .eq('available', true)
