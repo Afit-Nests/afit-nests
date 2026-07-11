@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { clearSessionCookie, requireAuth, setSessionCookie, signSession } from '../auth.js'
 import { query } from '../db.js'
 import { loginLimiter, validate } from '../middleware.js'
+import { passwordSchema } from '../passwordPolicy.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -12,7 +13,7 @@ const PASSWORD_COST = 12
 const registerStudentSchema = z.object({
   body: z.object({
     email: z.email(),
-    password: z.string().min(8).max(128),
+    password: passwordSchema(z),
     fullName: z.string().min(2).max(120),
     matricNumber: z.string().min(2).max(60),
     department: z.string().min(2).max(120),
@@ -23,7 +24,7 @@ const registerStudentSchema = z.object({
 const registerLandlordSchema = z.object({
   body: z.object({
     phone: z.string().min(7).max(30),
-    password: z.string().min(8).max(128),
+    password: passwordSchema(z),
     fullName: z.string().min(2).max(120),
     nin: z.string().min(6).max(30),
     address: z.string().min(5).max(240),
@@ -48,7 +49,7 @@ const forgotPasswordSchema = z.object({
 const resetPasswordSchema = z.object({
   body: z.object({
     token: z.string().min(32).max(200),
-    password: z.string().min(8).max(128),
+    password: passwordSchema(z),
   }),
 })
 

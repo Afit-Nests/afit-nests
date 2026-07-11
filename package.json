@@ -8,6 +8,7 @@
     "backend": "node server/src/index.js",
     "server": "node server/src/index.js",
     "create-admin": "node server/src/scripts/create-admin.js",
+    "create-access-users": "node server/src/scripts/create-access-users.js",
     "build": "vite build --configLoader runner",
     "lint": "eslint .",
     "preview": "vite preview"

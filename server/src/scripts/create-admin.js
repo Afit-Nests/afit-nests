@@ -3,6 +3,7 @@ import dotenv from 'dotenv'
 import path from 'path'
 import bcrypt from 'bcryptjs'
 import { query, pool } from '../db.js'
+import { PASSWORD_REQUIREMENTS, isComplexPassword } from '../passwordPolicy.js'
 
 dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') })
 
@@ -15,8 +16,8 @@ if (!email || !password) {
   process.exit(1)
 }
 
-if (password.length < 12) {
-  console.error('ADMIN_PASSWORD must be at least 12 characters.')
+if (!isComplexPassword(password)) {
+  console.error(`ADMIN_PASSWORD is not complex enough. ${PASSWORD_REQUIREMENTS}`)
   process.exit(1)
 }
 

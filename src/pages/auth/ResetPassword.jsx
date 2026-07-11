@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../lib/apiClient'
+import { PASSWORD_REQUIREMENTS, isComplexPassword } from '../../lib/passwordPolicy'
 import { Eye, EyeOff, CheckCircle, AlertCircle, Lock } from 'lucide-react'
 
 export default function ResetPassword() {
@@ -22,7 +23,7 @@ export default function ResetPassword() {
   const handleSubmit = async () => {
     if (!password || !confirmPassword) { setError('Please fill in both fields'); return }
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
-    if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (!isComplexPassword(password)) { setError(PASSWORD_REQUIREMENTS); return }
 
     setLoading(true)
     const token = new URLSearchParams(window.location.search).get('token')
@@ -95,7 +96,7 @@ export default function ResetPassword() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={e => { setPassword(e.target.value); setError(null) }}
-                    placeholder="Min. 8 characters"
+                    placeholder="14+ chars, Aa, 0-9, symbol"
                     style={{ ...inputStyle, paddingLeft: '2.8rem', paddingRight: '3rem' }}
                   />
                   <Lock size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />

@@ -1,4 +1,5 @@
 import { api } from './apiClient'
+import { PASSWORD_REQUIREMENTS, isComplexPassword } from './passwordPolicy'
 
 const toCamelUser = (user) => ({
   role: user.role,
@@ -98,6 +99,10 @@ export async function saveAdminUser(user) {
 
   if (!user.id && !payload.password) {
     throw new Error('Set an initial password for the new account.')
+  }
+
+  if (payload.password && !isComplexPassword(payload.password)) {
+    throw new Error(PASSWORD_REQUIREMENTS)
   }
 
   const result = user.id

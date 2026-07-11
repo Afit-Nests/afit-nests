@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { PASSWORD_REQUIREMENTS, isComplexPassword } from '../../lib/passwordPolicy'
 import { Eye, EyeOff, AlertCircle, ArrowLeft, BadgeCheck, MessageSquare, Calendar } from 'lucide-react'
 
 export default function StudentSignup() {
@@ -16,7 +17,7 @@ export default function StudentSignup() {
   const handleSubmit = async () => {
     if (!form.fullName || !form.email || !form.matricNumber || !form.department || !form.phone || !form.password) { setError('Please fill in all fields'); return }
     if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return }
-    if (form.password.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (!isComplexPassword(form.password)) { setError(PASSWORD_REQUIREMENTS); return }
     setLoading(true)
     const { error } = await signUpStudent({ email: form.email, password: form.password, fullName: form.fullName, matricNumber: form.matricNumber, department: form.department, phone: form.phone })
     if (error) { setError(error.message); setLoading(false); return }
@@ -119,7 +120,7 @@ export default function StudentSignup() {
             <div>
               <label style={labelStyle}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="Min. 8 characters" style={{ ...inputStyle, paddingRight: '3rem' }} />
+                <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="14+ chars, Aa, 0-9, symbol" style={{ ...inputStyle, paddingRight: '3rem' }} />
                 <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>

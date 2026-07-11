@@ -520,7 +520,7 @@ function PeopleManager({ users, landlords, students, selectedUser, setSelectedUs
           <Field label="Phone"><input value={selectedUser.phone} onChange={e => setSelectedUser({ ...selectedUser, phone: e.target.value })} style={inputStyle} /></Field>
           <Field label="Email"><input value={selectedUser.email || ''} onChange={e => setSelectedUser({ ...selectedUser, email: e.target.value })} placeholder={selectedUser.role === 'landlord' ? 'auto from phone' : ''} style={inputStyle} /></Field>
         </div>
-        <Field label="Password"><input value={selectedUser.password || ''} onChange={e => setSelectedUser({ ...selectedUser, password: e.target.value })} placeholder={selectedUser.id ? 'Leave blank to keep current password' : 'Set an initial password'} style={inputStyle} /></Field>
+        <Field label="Password"><input type="password" value={selectedUser.password || ''} onChange={e => setSelectedUser({ ...selectedUser, password: e.target.value })} placeholder={selectedUser.id ? 'Leave blank to keep current password' : '14+ chars, Aa, 0-9, symbol'} style={inputStyle} /></Field>
         {selectedUser.role === 'student' && (
           <div className="cms-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
             <Field label="Matric Number"><input value={selectedUser.matric_number || ''} onChange={e => setSelectedUser({ ...selectedUser, matric_number: e.target.value })} style={inputStyle} /></Field>

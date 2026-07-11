@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth.js'
 import { query } from '../db.js'
 import { validate } from '../middleware.js'
+import { passwordSchema } from '../passwordPolicy.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -14,7 +15,7 @@ const userSchema = z.object({
     fullName: z.string().min(2).max(120),
     email: z.email().optional(),
     phone: z.string().min(7).max(30).optional(),
-    password: z.string().min(8).max(128),
+    password: passwordSchema(z),
     verified: z.boolean().default(false),
     matricNumber: z.string().max(60).optional(),
     department: z.string().max(120).optional(),
@@ -26,7 +27,7 @@ const userSchema = z.object({
 const userPatchSchema = z.object({
   params: z.object({ id: z.uuid() }),
   body: userSchema.shape.body.partial().extend({
-    password: z.string().min(8).max(128).optional(),
+    password: passwordSchema(z).optional(),
   }).refine(value => Object.keys(value).length > 0, 'At least one user field is required.'),
 })
 
