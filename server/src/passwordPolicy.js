@@ -1,7 +1,7 @@
-export const PASSWORD_REQUIREMENTS = 'Password must be 14-128 characters with uppercase, lowercase, number, symbol, and no spaces.'
+export const PASSWORD_REQUIREMENTS = 'Password must be 8-128 characters with uppercase, lowercase, number, symbol, and no spaces.'
 
 export const isComplexPassword = (password = '') => (
-  password.length >= 14 &&
+  password.length >= 8 &&
   password.length <= 128 &&
   /[a-z]/.test(password) &&
   /[A-Z]/.test(password) &&
@@ -11,6 +11,6 @@ export const isComplexPassword = (password = '') => (
 )
 
 export const passwordSchema = (z) => z.string()
-  .min(14, PASSWORD_REQUIREMENTS)
+  .min(8, PASSWORD_REQUIREMENTS)
   .max(128, PASSWORD_REQUIREMENTS)
   .refine(isComplexPassword, PASSWORD_REQUIREMENTS)

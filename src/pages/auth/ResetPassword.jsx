@@ -96,7 +96,7 @@ export default function ResetPassword() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={e => { setPassword(e.target.value); setError(null) }}
-                    placeholder="14+ chars, Aa, 0-9, symbol"
+                    placeholder="8+ chars, Aa, 0-9, symbol"
                     style={{ ...inputStyle, paddingLeft: '2.8rem', paddingRight: '3rem' }}
                   />
                   <Lock size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />

@@ -120,7 +120,7 @@ export default function StudentSignup() {
             <div>
               <label style={labelStyle}>Password</label>
               <div style={{ position: 'relative' }}>
-                <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="14+ chars, Aa, 0-9, symbol" style={{ ...inputStyle, paddingRight: '3rem' }} />
+                <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="8+ chars, Aa, 0-9, symbol" style={{ ...inputStyle, paddingRight: '3rem' }} />
                 <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
