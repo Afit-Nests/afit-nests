@@ -208,6 +208,11 @@ router.post('/:id/confirm', requireAuth, requireRole('admin'), validate(idSchema
         error.status = 404
         throw error
       }
+      if (row.status !== 'paid_pending_confirmation' || !row.paystack_verified) {
+        const error = new Error('Only verified pending payments can be confirmed.')
+        error.status = 409
+        throw error
+      }
 
       await client.query(
         `UPDATE listings
@@ -243,6 +248,11 @@ router.post('/:id/reject', requireAuth, requireRole('admin'), validate(idSchema)
       if (!row) {
         const error = new Error('Payment not found.')
         error.status = 404
+        throw error
+      }
+      if (row.status !== 'paid_pending_confirmation') {
+        const error = new Error('Only pending paid allocations can be rejected.')
+        error.status = 409
         throw error
       }
 

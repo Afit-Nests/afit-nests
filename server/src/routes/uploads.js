@@ -27,6 +27,9 @@ router.put('/:bucket/:key', requireAuth, express.raw({ type: '*/*', limit: '5mb'
   try {
     const { bucket, key } = req.params
     if (!allowedBuckets.has(bucket)) return res.status(400).json({ error: 'Invalid upload bucket.' })
+    if (bucket === 'listings' && !['landlord', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only landlords and admins can upload listing photos.' })
+    }
 
     const contentType = req.get('content-type')
     if (!allowedTypes.has(contentType)) return res.status(415).json({ error: 'Only JPG, PNG, and WEBP images are allowed.' })

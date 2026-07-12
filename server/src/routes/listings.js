@@ -48,7 +48,7 @@ router.get('/:id', async (req, res, next) => {
       `SELECT l.*, p.full_name AS landlord_name, p.verified AS landlord_verified
        FROM listings l
        JOIN profiles p ON p.id = l.landlord_id
-       WHERE l.id = $1`,
+       WHERE l.id = $1 AND l.status = 'available'`,
       [req.params.id],
     )
     if (!rows[0]) return res.status(404).json({ error: 'Listing not found.' })

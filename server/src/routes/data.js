@@ -138,8 +138,17 @@ async function handleSelect(table, body, req, res) {
 
   if (table === 'listings') {
     const idFilter = getFilter(body.filters, 'id')
-    if (!idFilter) clauses.push(`l.status = 'available'`)
     addPrefixedFilters(clauses, params, body.filters, new Set(['id', 'landlord_id', 'available', 'status']), 'l')
+    if (!idFilter) {
+      clauses.push(`l.status = 'available'`)
+    } else if (req.user?.role !== 'admin') {
+      if (req.user?.role === 'landlord') {
+        params.push(req.user.id)
+        clauses.push(`(l.status = 'available' OR l.landlord_id = $${params.length})`)
+      } else {
+        clauses.push(`l.status = 'available'`)
+      }
+    }
     if (req.user?.role === 'landlord' && hasFilter(body.filters, 'landlord_id')) {
       const landlordId = getFilter(body.filters, 'landlord_id')
       if (landlordId !== req.user.id) return res.status(403).json({ error: 'Permission denied.' })

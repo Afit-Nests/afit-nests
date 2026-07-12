@@ -66,6 +66,7 @@ const publicProfile = (row) => ({
 })
 
 const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex')
+const exposeResetUrl = () => process.env.ALLOW_DEV_RESET_URL === 'true'
 
 router.post('/register/student', validate(registerStudentSchema), async (req, res, next) => {
   try {
@@ -157,7 +158,7 @@ router.post('/password/forgot', loginLimiter, validate(forgotPasswordSchema), as
 
     res.json({
       ok: true,
-      resetUrl: process.env.NODE_ENV === 'production' ? undefined : resetUrl,
+      resetUrl: exposeResetUrl() ? resetUrl : undefined,
     })
   } catch (error) {
     next(error)
