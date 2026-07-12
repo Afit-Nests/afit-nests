@@ -28,6 +28,33 @@ const requestSchema = z.object({
   }),
 })
 
+const dataListingInsertSchema = z.object({
+  title: z.string().min(3).max(160),
+  type: z.string().min(2).max(80),
+  price: z.coerce.number().positive(),
+  distance: z.coerce.number().nonnegative().optional().nullable(),
+  description: z.string().max(5000).optional(),
+  address: z.string().min(5).max(240),
+  amenities: z.array(z.string().max(80)).default([]),
+  photos: z.array(z.string().url()).default([]),
+  status: z.enum(['available', 'pending_confirmation', 'occupied']).default('available'),
+  lat: z.coerce.number().optional().nullable(),
+  lng: z.coerce.number().optional().nullable(),
+  landlord_id: z.uuid().optional(),
+})
+
+const dataListingUpdateSchema = dataListingInsertSchema.partial().refine(
+  value => Object.keys(value).length > 0,
+  'At least one listing field is required.',
+)
+
+const parsePayload = (schema, payload, res) => {
+  const result = schema.safeParse(payload)
+  if (result.success) return result.data
+  res.status(400).json({ error: result.error.issues[0]?.message || 'Invalid request payload.' })
+  return null
+}
+
 const snakeToCamel = (row) => ({
   ...row,
   profiles: row.profile_id || row.profile_full_name || row.profile_role ? {
@@ -279,25 +306,28 @@ async function handleInsert(table, body, req, res) {
 
   if (table === 'listings') {
     if (!assertRole(req, res, ['landlord', 'admin'])) return null
-    const landlordId = req.user.role === 'admin' ? payload.landlord_id : req.user.id
+    const listing = parsePayload(dataListingInsertSchema, payload, res)
+    if (!listing) return null
+    const landlordId = req.user.role === 'admin' ? listing.landlord_id : req.user.id
+    if (!landlordId) return res.status(400).json({ error: 'Admin-created listings must be assigned to a landlord.' })
     const { rows } = await query(
       `INSERT INTO listings (landlord_id, title, type, price, distance, description, address, amenities, photos, status, available, lat, lng)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12, $13)
        RETURNING *`,
       [
         landlordId,
-        payload.title,
-        payload.type,
-        Number(payload.price),
-        payload.distance ?? null,
-        payload.description || '',
-        payload.address,
-        JSON.stringify(payload.amenities || []),
-        JSON.stringify(payload.photos || []),
-        payload.status || 'available',
-        (payload.status || 'available') === 'available',
-        payload.lat ?? null,
-        payload.lng ?? null,
+        listing.title,
+        listing.type,
+        listing.price,
+        listing.distance ?? null,
+        listing.description || '',
+        listing.address,
+        JSON.stringify(listing.amenities || []),
+        JSON.stringify(listing.photos || []),
+        listing.status,
+        listing.status === 'available',
+        listing.lat ?? null,
+        listing.lng ?? null,
       ],
     )
     return res.status(201).json({ data: body.single ? rows[0] : rows })
@@ -370,6 +400,8 @@ async function handleUpdate(table, body, req, res) {
   }
 
   if (table === 'listings') {
+    const listing = parsePayload(dataListingUpdateSchema, payload, res)
+    if (!listing) return null
     const ownerResult = await query(`SELECT landlord_id FROM listings WHERE id = $1`, [id])
     if (!ownerResult.rows[0]) return res.status(404).json({ error: 'Listing not found.' })
     if (req.user.role !== 'admin' && ownerResult.rows[0].landlord_id !== req.user.id) return res.status(403).json({ error: 'Permission denied.' })
@@ -390,16 +422,16 @@ async function handleUpdate(table, body, req, res) {
        RETURNING *`,
       [
         id,
-        payload.title,
-        payload.type,
-        payload.price,
-        payload.distance,
-        payload.description,
-        payload.address,
-        payload.amenities ? JSON.stringify(payload.amenities) : null,
-        payload.photos ? JSON.stringify(payload.photos) : null,
-        payload.status,
-        payload.status ? payload.status === 'available' : undefined,
+        listing.title,
+        listing.type,
+        listing.price,
+        listing.distance,
+        listing.description,
+        listing.address,
+        listing.amenities ? JSON.stringify(listing.amenities) : null,
+        listing.photos ? JSON.stringify(listing.photos) : null,
+        listing.status,
+        listing.status ? listing.status === 'available' : undefined,
       ],
     )
     return res.json({ data: body.single ? rows[0] : rows })
