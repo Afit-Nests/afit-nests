@@ -3,6 +3,7 @@ ALTER TYPE listing_status ADD VALUE IF NOT EXISTS 'rejected';
 
 ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'pending_review';
 ALTER TABLE listings ALTER COLUMN available SET DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

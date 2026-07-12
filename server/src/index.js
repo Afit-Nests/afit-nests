@@ -49,7 +49,12 @@ app.use(cors({
   },
   credentials: true,
 }))
-app.use(express.json({ limit: '200kb' }))
+app.use(express.json({
+  limit: '200kb',
+  verify: (req, _res, buffer) => {
+    if (req.originalUrl === '/api/payments/paystack/webhook') req.rawBody = buffer
+  },
+}))
 app.use(cookieParser(process.env.COOKIE_SECRET))
 app.use(attachCsrfToken)
 app.use('/api', apiLimiter)

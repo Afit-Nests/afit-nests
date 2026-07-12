@@ -75,7 +75,7 @@ router.post('/register/student', loginLimiter, validate(registerStudentSchema), 
     const { rows } = await query(
       `INSERT INTO profiles (email, phone, password_hash, role, full_name, matric_number, department, verified)
        VALUES ($1, $2, $3, 'student', $4, $5, $6, true)
-       RETURNING id, email, phone, role, full_name, matric_number, department, verified, created_at`,
+       RETURNING id, email, phone, role, full_name, matric_number, department, verified, session_version, created_at`,
       [email.toLowerCase(), phone, passwordHash, fullName, matricNumber, department],
     )
     const token = signSession(rows[0])
@@ -95,7 +95,7 @@ router.post('/register/landlord', loginLimiter, validate(registerLandlordSchema)
     const { rows } = await query(
       `INSERT INTO profiles (email, phone, password_hash, role, full_name, nin, address, verified)
        VALUES ($1, $2, $3, 'landlord', $4, $5, $6, false)
-       RETURNING id, email, phone, role, full_name, verified, created_at`,
+       RETURNING id, email, phone, role, full_name, verified, session_version, created_at`,
       [email, phone, passwordHash, fullName, nin, address],
     )
     const token = signSession(rows[0])
@@ -115,7 +115,7 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
       : ['email = $1', email?.toLowerCase()]
 
     const { rows } = await query(
-      `SELECT id, email, phone, password_hash, role, full_name, matric_number, department, verified, created_at
+      `SELECT id, email, phone, password_hash, role, full_name, matric_number, department, verified, session_version, created_at
        FROM profiles
        WHERE ${lookup[0]} AND role = $2`,
       [lookup[1], role],
@@ -134,9 +134,14 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
   }
 })
 
-router.post('/logout', requireAuth, (req, res) => {
-  clearSessionCookie(res)
-  res.json({ ok: true })
+router.post('/logout', requireAuth, async (req, res, next) => {
+  try {
+    await query(`UPDATE profiles SET session_version = session_version + 1, updated_at = now() WHERE id = $1`, [req.user.id])
+    clearSessionCookie(res)
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
 })
 
 router.post('/password/forgot', loginLimiter, validate(forgotPasswordSchema), async (req, res, next) => {
@@ -182,7 +187,12 @@ router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), asyn
     const resetToken = rows[0]
     if (!resetToken) return res.status(400).json({ error: 'Invalid or expired reset link.' })
 
-    await query(`UPDATE profiles SET password_hash = $1, updated_at = now() WHERE id = $2`, [passwordHash, resetToken.profile_id])
+    await query(
+      `UPDATE profiles
+       SET password_hash = $1, session_version = session_version + 1, updated_at = now()
+       WHERE id = $2`,
+      [passwordHash, resetToken.profile_id],
+    )
     clearSessionCookie(res)
     res.json({ ok: true })
   } catch (error) {
@@ -192,6 +202,30 @@ router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), asyn
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
+})
+
+router.delete('/me', requireAuth, async (req, res, next) => {
+  try {
+    await query(
+      `UPDATE profiles
+       SET email = 'deleted_' || id::text || '@deleted.afitnests.local',
+           phone = NULL,
+           full_name = 'Deleted user',
+           matric_number = NULL,
+           department = NULL,
+           nin = NULL,
+           address = NULL,
+           verified = false,
+           session_version = session_version + 1,
+           updated_at = now()
+       WHERE id = $1`,
+      [req.user.id],
+    )
+    clearSessionCookie(res)
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
 })
 
 export default router

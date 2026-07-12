@@ -10,7 +10,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 
 export function signSession(profile) {
   return jwt.sign(
-    { sub: profile.id, role: profile.role },
+    { sub: profile.id, role: profile.role, sessionVersion: profile.session_version || 0 },
     process.env.JWT_SECRET,
     { expiresIn: SESSION_TTL_SECONDS, issuer: 'afit-nests' },
   )
@@ -27,7 +27,12 @@ export function setSessionCookie(res, token) {
 }
 
 export function clearSessionCookie(res) {
-  res.clearCookie(COOKIE_NAME, { path: '/' })
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  })
 }
 
 export async function requireAuth(req, res, next) {
@@ -37,13 +42,16 @@ export async function requireAuth(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'afit-nests' })
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, verified, created_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, created_at
        FROM profiles
        WHERE id = $1`,
       [payload.sub],
     )
 
     if (!rows[0]) return res.status(401).json({ error: 'Session is no longer valid.' })
+    if ((rows[0].session_version || 0) !== (payload.sessionVersion || 0)) {
+      return res.status(401).json({ error: 'Session is no longer valid.' })
+    }
     req.user = rows[0]
     next()
   } catch {
@@ -58,13 +66,13 @@ export async function optionalAuth(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'afit-nests' })
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, verified, created_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, created_at
        FROM profiles
        WHERE id = $1`,
       [payload.sub],
     )
 
-    req.user = rows[0] || null
+    req.user = rows[0] && (rows[0].session_version || 0) === (payload.sessionVersion || 0) ? rows[0] : null
     next()
   } catch {
     req.user = null

@@ -21,6 +21,15 @@ const referenceSchema = z.object({
   }),
 })
 
+const paystackWebhookSchema = z.object({
+  body: z.object({
+    event: z.string().min(1).max(120),
+    data: z.object({
+      reference: z.string().min(8).max(120),
+    }).passthrough(),
+  }).passthrough(),
+})
+
 const idSchema = z.object({
   params: z.object({
     id: z.uuid(),
@@ -28,6 +37,18 @@ const idSchema = z.object({
 })
 
 const createReference = () => `AFIT-${Date.now()}-${crypto.randomUUID().split('-')[0]}`.toUpperCase()
+
+function verifyPaystackWebhookSignature(req) {
+  if (!process.env.PAYSTACK_SECRET_KEY) return false
+  const signature = req.get('x-paystack-signature')
+  if (!signature || !Buffer.isBuffer(req.rawBody)) return false
+  const expected = crypto
+    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+    .update(req.rawBody)
+    .digest('hex')
+  return signature.length === expected.length
+    && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+}
 
 async function verifyPaystackTransaction(reference, payment) {
   if (!process.env.PAYSTACK_SECRET_KEY) {
@@ -195,6 +216,71 @@ router.post('/paystack/callback', requireAuth, requireRole('student'), validate(
     })
 
     res.json({ payment })
+  } catch (error) {
+    next(error)
+  }
+})
+
+router.post('/paystack/webhook', validate(paystackWebhookSchema), async (req, res, next) => {
+  try {
+    if (!verifyPaystackWebhookSignature(req)) {
+      return res.status(401).json({ error: 'Invalid webhook signature.' })
+    }
+
+    if (req.validated.body.event !== 'charge.success') {
+      return res.json({ ok: true })
+    }
+
+    await transaction(async (client) => {
+      const paymentResult = await client.query(
+        `SELECT * FROM payments WHERE payment_reference = $1 FOR UPDATE`,
+        [req.validated.body.data.reference],
+      )
+      const row = paymentResult.rows[0]
+      if (!row || row.status !== 'initialized') return null
+
+      const listingResult = await client.query(
+        `SELECT id, status FROM listings WHERE id = $1 FOR UPDATE`,
+        [row.listing_id],
+      )
+      const listing = listingResult.rows[0]
+      if (!listing || listing.status !== 'available') return null
+
+      const paystackTransaction = await verifyPaystackTransaction(row.payment_reference, row)
+
+      await client.query(
+        `UPDATE listings
+         SET status = 'pending_confirmation',
+             available = false,
+             reserved_by = $1,
+             reserved_at = now(),
+             payment_reference = $2,
+             updated_at = now()
+         WHERE id = $3`,
+        [row.student_id, row.payment_reference, row.listing_id],
+      )
+
+      await client.query(
+        `UPDATE payments
+         SET status = 'paid_pending_confirmation',
+             paystack_transaction_id = $1,
+             paystack_verified = true,
+             paid_at = now(),
+             updated_at = now()
+         WHERE id = $2`,
+        [String(paystackTransaction.id || paystackTransaction.reference), row.id],
+      )
+
+      await writeAuditLog(client, {
+        action: 'payment.webhook_verified',
+        targetType: 'payment',
+        targetId: row.id,
+        metadata: { reference: row.payment_reference },
+      })
+      return null
+    })
+
+    res.json({ ok: true })
   } catch (error) {
     next(error)
   }

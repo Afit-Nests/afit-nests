@@ -32,6 +32,10 @@ const userPatchSchema = z.object({
   }).refine(value => Object.keys(value).length > 0, 'At least one user field is required.'),
 })
 
+const userIdSchema = z.object({
+  params: z.object({ id: z.uuid() }),
+})
+
 const adminListingSchema = z.object({
   body: z.object({
     landlordId: z.uuid(),
@@ -178,14 +182,17 @@ router.patch('/users/:id', requireAuth, requireRole('admin'), validate(userPatch
     if (!existingResult.rows[0]) return res.status(404).json({ error: 'User not found.' })
 
     const existing = existingResult.rows[0]
-    const passwordHash = user.password ? await bcrypt.hash(user.password, PASSWORD_COST) : existing.password_hash
+    const passwordChanged = Boolean(user.password)
+    const passwordHash = passwordChanged ? await bcrypt.hash(user.password, PASSWORD_COST) : existing.password_hash
     const role = user.role || existing.role
     const email = user.email || (role === 'landlord' && user.phone ? `landlord_${user.phone}@afitnests.com` : existing.email)
 
     const { rows } = await query(
       `UPDATE profiles
        SET email = $1, phone = $2, password_hash = $3, role = $4, full_name = $5,
-           matric_number = $6, department = $7, nin = $8, address = $9, verified = $10, updated_at = now()
+           matric_number = $6, department = $7, nin = $8, address = $9, verified = $10,
+           session_version = CASE WHEN $12::boolean THEN session_version + 1 ELSE session_version END,
+           updated_at = now()
        WHERE id = $11
        RETURNING id, email, phone, role, full_name, matric_number, department, nin, address, verified, created_at, updated_at`,
       [
@@ -200,11 +207,75 @@ router.patch('/users/:id', requireAuth, requireRole('admin'), validate(userPatch
         user.address ?? existing.address,
         user.verified ?? existing.verified,
         req.validated.params.id,
+        passwordChanged,
       ],
     )
     res.json({ user: rows[0] })
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ error: 'Account already exists.' })
+    next(error)
+  }
+})
+
+router.delete('/users/:id', requireAuth, requireRole('admin'), validate(userIdSchema), async (req, res, next) => {
+  try {
+    if (req.validated.params.id === req.user.id) {
+      return res.status(400).json({ error: 'Use account settings to delete your own account.' })
+    }
+
+    const deleted = await transaction(async (client) => {
+      const existing = await client.query(
+        `SELECT id, role, full_name FROM profiles WHERE id = $1 FOR UPDATE`,
+        [req.validated.params.id],
+      )
+      if (!existing.rows[0]) return null
+
+      const paymentCount = await client.query(
+        `SELECT count(*)::int AS count FROM payments WHERE student_id = $1 OR landlord_id = $1`,
+        [req.validated.params.id],
+      )
+
+      if (paymentCount.rows[0].count > 0) {
+        const anonymized = await client.query(
+          `UPDATE profiles
+           SET email = 'deleted_' || id::text || '@deleted.afitnests.local',
+               phone = NULL,
+               full_name = 'Deleted user',
+               matric_number = NULL,
+               department = NULL,
+               nin = NULL,
+               address = NULL,
+               verified = false,
+               session_version = session_version + 1,
+               updated_at = now()
+           WHERE id = $1
+           RETURNING id, role, full_name`,
+          [req.validated.params.id],
+        )
+        await writeAuditLog(client, {
+          actorId: req.user.id,
+          action: 'user.anonymized',
+          targetType: 'profile',
+          targetId: req.validated.params.id,
+          metadata: { reason: 'financial records retained' },
+        })
+        return { mode: 'anonymized', user: anonymized.rows[0] }
+      }
+
+      await client.query(`DELETE FROM profiles WHERE id = $1`, [req.validated.params.id])
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: 'user.deleted',
+        targetType: 'profile',
+        targetId: req.validated.params.id,
+        metadata: { role: existing.rows[0].role },
+      })
+      return { mode: 'deleted', user: existing.rows[0] }
+    })
+
+    if (!deleted) return res.status(404).json({ error: 'User not found.' })
+    res.json(deleted)
+  } catch (error) {
     next(error)
   }
 })

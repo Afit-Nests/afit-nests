@@ -50,6 +50,9 @@ router.put('/:bucket/:key', requireAuth, express.raw({ type: '*/*', limit: '5mb'
   try {
     const { bucket, key } = req.params
     if (!allowedBuckets.has(bucket)) return res.status(400).json({ error: 'Invalid upload bucket.' })
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOCAL_UPLOADS !== 'true') {
+      return res.status(503).json({ error: 'Production uploads require external object storage.' })
+    }
     if (bucket === 'listings' && !['landlord', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Only landlords and admins can upload listing photos.' })
     }

@@ -33,10 +33,14 @@ npm run backend
 - SQL uses parameterized queries.
 - Payment reservation uses database transactions and row locks.
 - Database credentials stay server-side only.
+- Logout and password reset invalidate older copied JWT session cookies.
+- Paystack webhooks must include a valid `x-paystack-signature`.
+- Production local uploads are disabled unless `ALLOW_LOCAL_UPLOADS=true`; use external object storage for real deployments.
 
 ## Production Notes
 
 - Use a managed PostgreSQL provider with automated backups, encryption at rest, and private networking.
+- Confirm automated backups are enabled before real users join, and test at least one restore.
 - Use a restricted database user for the app.
 - Store secrets in your host environment, not `.env` committed to Git.
 - Paystack final verification should be done server-side with the Paystack secret key before marking payments verified.

@@ -49,6 +49,7 @@ export const api = {
     registerLandlord: (body) => apiRequest('/auth/register/landlord', { method: 'POST', body }),
     forgotPassword: (email) => apiRequest('/auth/password/forgot', { method: 'POST', body: { email } }),
     resetPassword: (token, password) => apiRequest('/auth/password/reset', { method: 'POST', body: { token, password } }),
+    deleteMe: () => apiRequest('/auth/me', { method: 'DELETE' }),
   },
   listings: {
     list: () => apiRequest('/listings'),
@@ -80,6 +81,7 @@ export const api = {
     users: () => apiRequest('/admin/users'),
     createUser: (body) => apiRequest('/admin/users', { method: 'POST', body }),
     updateUser: (id, body) => apiRequest(`/admin/users/${id}`, { method: 'PATCH', body }),
+    deleteUser: (id) => apiRequest(`/admin/users/${id}`, { method: 'DELETE' }),
     setLandlordVerification: (id, verified) => apiRequest(`/admin/users/${id}/verification`, { method: 'PATCH', body: { verified } }),
     createListing: (body) => apiRequest('/admin/listings', { method: 'POST', body }),
     updateListing: (id, body) => apiRequest(`/admin/listings/${id}`, { method: 'PATCH', body }),

@@ -39,6 +39,7 @@ export function attachCsrfToken(req, res, next) {
 
 export function csrfProtection(req, res, next) {
   if (!isUnsafeMethod(req.method)) return next()
+  if (req.path === '/payments/paystack/webhook') return next()
 
   const cookieToken = req.cookies?.[csrfCookieName]
   const headerToken = req.get(csrfHeaderName)
@@ -63,7 +64,10 @@ export function validate(schema) {
     })
 
     if (!result.success) {
-      return res.status(400).json({ error: 'Invalid request.', details: z.treeifyError(result.error) })
+      return res.status(400).json({
+        error: 'Invalid request.',
+        details: process.env.NODE_ENV === 'production' ? undefined : z.treeifyError(result.error),
+      })
     }
 
     req.validated = result.data
