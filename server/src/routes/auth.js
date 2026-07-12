@@ -68,7 +68,7 @@ const publicProfile = (row) => ({
 const hashResetToken = (token) => crypto.createHash('sha256').update(token).digest('hex')
 const exposeResetUrl = () => process.env.ALLOW_DEV_RESET_URL === 'true'
 
-router.post('/register/student', validate(registerStudentSchema), async (req, res, next) => {
+router.post('/register/student', loginLimiter, validate(registerStudentSchema), async (req, res, next) => {
   try {
     const { email, password, fullName, matricNumber, department, phone } = req.validated.body
     const passwordHash = await bcrypt.hash(password, PASSWORD_COST)
@@ -87,7 +87,7 @@ router.post('/register/student', validate(registerStudentSchema), async (req, re
   }
 })
 
-router.post('/register/landlord', validate(registerLandlordSchema), async (req, res, next) => {
+router.post('/register/landlord', loginLimiter, validate(registerLandlordSchema), async (req, res, next) => {
   try {
     const { phone, password, fullName, nin, address } = req.validated.body
     const email = `landlord_${phone}@afitnests.com`.toLowerCase()
@@ -165,7 +165,7 @@ router.post('/password/forgot', loginLimiter, validate(forgotPasswordSchema), as
   }
 })
 
-router.post('/password/reset', validate(resetPasswordSchema), async (req, res, next) => {
+router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), async (req, res, next) => {
   try {
     const { token, password } = req.validated.body
     const tokenHash = hashResetToken(token)

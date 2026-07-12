@@ -13,7 +13,10 @@ import { apiLimiter, attachCsrfToken, csrfProtection } from './middleware.js'
 
 const app = express()
 const port = Number(process.env.PORT || 4000)
-const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173'
+const clientOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
 
 if (!process.env.COOKIE_SECRET || process.env.COOKIE_SECRET.length < 32) {
   throw new Error('COOKIE_SECRET must be at least 32 characters.')
@@ -39,7 +42,10 @@ app.use(helmet({
   },
 }))
 app.use(cors({
-  origin: clientOrigin,
+  origin: (origin, callback) => {
+    if (!origin || clientOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('Origin is not allowed by CORS.'))
+  },
   credentials: true,
 }))
 app.use(express.json({ limit: '200kb' }))

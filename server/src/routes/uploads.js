@@ -15,6 +15,29 @@ const extensionByType = {
   'image/webp': '.webp',
 }
 
+const hasValidImageSignature = (buffer, contentType) => {
+  if (contentType === 'image/jpeg') {
+    return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+  }
+  if (contentType === 'image/png') {
+    return buffer.length >= 8
+      && buffer[0] === 0x89
+      && buffer[1] === 0x50
+      && buffer[2] === 0x4e
+      && buffer[3] === 0x47
+      && buffer[4] === 0x0d
+      && buffer[5] === 0x0a
+      && buffer[6] === 0x1a
+      && buffer[7] === 0x0a
+  }
+  if (contentType === 'image/webp') {
+    return buffer.length >= 12
+      && buffer.subarray(0, 4).toString('ascii') === 'RIFF'
+      && buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  }
+  return false
+}
+
 const safePath = (bucket, key) => {
   const normalizedKey = String(key || '').replace(/\\/g, '/').replace(/[^a-zA-Z0-9/_-]/g, '')
   const target = path.resolve(uploadRoot, bucket, normalizedKey)
@@ -34,6 +57,7 @@ router.put('/:bucket/:key', requireAuth, express.raw({ type: '*/*', limit: '5mb'
     const contentType = req.get('content-type')
     if (!allowedTypes.has(contentType)) return res.status(415).json({ error: 'Only JPG, PNG, and WEBP images are allowed.' })
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: 'Upload file is required.' })
+    if (!hasValidImageSignature(req.body, contentType)) return res.status(415).json({ error: 'Uploaded file does not match its image type.' })
 
     const extension = extensionByType[contentType]
     const target = safePath(bucket, `${key}-${crypto.randomUUID()}${extension}`)
