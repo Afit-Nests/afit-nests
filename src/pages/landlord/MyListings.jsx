@@ -38,6 +38,8 @@ export default function MyListings() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'available': return { icon: <Circle size={10} fill="#16A34A" color="#16A34A" />, text: 'Available', color: '#16A34A', bgColor: 'rgba(22,163,74,0.1)' }
+      case 'pending_review': return { icon: <Clock size={10} color="#F59E0B" />, text: 'Pending Review', color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)' }
+      case 'rejected': return { icon: <Circle size={10} fill="#DC2626" color="#DC2626" />, text: 'Rejected', color: '#DC2626', bgColor: 'rgba(220,38,38,0.1)' }
       case 'pending_confirmation': return { icon: <Clock size={10} color="#F59E0B" />, text: 'Pending Confirmation', color: '#F59E0B', bgColor: 'rgba(245,158,11,0.1)' }
       case 'occupied': return { icon: <Circle size={10} fill="#DC2626" color="#DC2626" />, text: 'Occupied', color: '#DC2626', bgColor: 'rgba(220,38,38,0.1)' }
       default: return { icon: <Circle size={10} fill="#16A34A" color="#16A34A" />, text: 'Available', color: '#16A34A', bgColor: 'rgba(22,163,74,0.1)' }
@@ -122,9 +124,9 @@ export default function MyListings() {
                       {badge.icon} {badge.text}
                     </div>
                     <div style={{ display: 'flex', gap: '0.6rem' }}>
-                      {listing.status !== 'pending_confirmation' && (
+                      {listing.status === 'available' && (
                         <button onClick={() => toggleAvailability(listing.id, listing.status)} style={{ background: 'var(--beige)', color: 'var(--text)', padding: '0.45rem 0.9rem', borderRadius: '50px', border: '1px solid var(--beige-dark)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
-                          {listing.status === 'available' ? 'Mark Occupied' : 'Mark Available'}
+                          Mark Occupied
                         </button>
                       )}
                       <Link to={`/listings/${listing.id}`} style={{ background: 'var(--blue)', color: 'white', padding: '0.45rem 0.9rem', borderRadius: '50px', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none' }}>View</Link>

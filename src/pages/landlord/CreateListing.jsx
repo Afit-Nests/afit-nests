@@ -115,7 +115,7 @@ export default function CreateListing() {
 
         {submitted && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '16px', padding: '1.2rem 1.5rem', marginBottom: '1.5rem', color: '#16A34A', fontWeight: 600 }}>
-            <CheckCircle size={18} /> {uploadProgress || 'Listing submitted! Redirecting...'}
+            <CheckCircle size={18} /> {uploadProgress || 'Listing submitted for admin review. Redirecting...'}
           </div>
         )}
 
@@ -218,7 +218,7 @@ export default function CreateListing() {
               <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: 'var(--blue)', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
                 <ClipboardList size={16} /> After Submitting
               </h4>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Your listing will be reviewed and go live within 24 hours.</p>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>Your listing enters admin review before it can go live.</p>
             </div>
           </div>
         </div>

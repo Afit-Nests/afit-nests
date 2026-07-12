@@ -50,6 +50,7 @@ const emptyPage = { id: null, title: '', slug: '', status: 'draft', summary: '',
 const emptySetting = { id: null, key: '', label: '', value: '', type: 'text' }
 const emptyUser = { id: null, role: 'landlord', full_name: '', email: '', phone: '', password: '', verified: true, matric_number: '', department: '', nin: '', address: '' }
 const emptyListing = { id: null, landlord_id: '', title: '', type: 'Self Contain', price: '', distance: '', address: '', description: '', amenities: ['Power', 'Water'], status: 'available', lat: '', lng: '', photos: [] }
+const LISTING_STATUSES = ['pending_review', 'rejected', 'available', 'pending_confirmation', 'occupied']
 
 export default function AdminCMS() {
   const { profile, signOut } = useAuth()
@@ -233,6 +234,7 @@ export default function AdminCMS() {
     { label: 'Students', value: overview?.students || 0, icon: <Users size={22} /> },
     { label: 'Landlords', value: overview?.landlords || 0, icon: <ShieldCheck size={22} /> },
     { label: 'Pending Checks', value: pendingLandlords.length, icon: <BadgeCheck size={22} /> },
+    { label: 'Listing Reviews', value: overview?.pendingListings || 0, icon: <Clock size={22} /> },
     { label: 'Open Disputes', value: overview?.openDisputes || 0, icon: <AlertTriangle size={22} /> },
   ]
 
@@ -260,7 +262,7 @@ export default function AdminCMS() {
           <div style={{ color: 'var(--text-muted)', padding: '3rem 0' }}>Loading CMS...</div>
         ) : (
           <>
-            <div className="cms-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.9rem', marginBottom: '1.5rem' }}>
+            <div className="cms-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.9rem', marginBottom: '1.5rem' }}>
               {statCards.map(card => <StatCard key={card.label} card={card} />)}
             </div>
 
@@ -449,6 +451,7 @@ function ListingsManager({ listings, landlords, selectedListing, setSelectedList
               <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <button onClick={() => setSelectedListing({ ...listing, amenities: listing.amenities || [] })} style={smallGhostButton}>Edit</button>
                 {listing.status !== 'available' && <button onClick={() => handleListingStatus(listing.id, 'available')} style={smallGhostButton}>Available</button>}
+                {listing.status !== 'rejected' && <button onClick={() => handleListingStatus(listing.id, 'rejected')} style={smallDangerButton}>Reject</button>}
                 {listing.status !== 'occupied' && <button onClick={() => handleListingStatus(listing.id, 'occupied')} style={smallDangerButton}>Occupied</button>}
               </div>
             </div>
@@ -461,7 +464,7 @@ function ListingsManager({ listings, landlords, selectedListing, setSelectedList
         <h2 style={panelTitleStyle}>{selectedListing.id ? 'Edit Listing' : 'Add Listing'}</h2>
         <div className="cms-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginTop: '1rem' }}>
           <Field label="Landlord"><select value={selectedListing.landlord_id} onChange={e => setSelectedListing({ ...selectedListing, landlord_id: e.target.value })} style={inputStyle}><option value="">Select landlord</option>{landlords.map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}</select></Field>
-          <Field label="Status"><select value={selectedListing.status} onChange={e => setSelectedListing({ ...selectedListing, status: e.target.value })} style={inputStyle}><option>available</option><option>pending_confirmation</option><option>occupied</option></select></Field>
+          <Field label="Status"><select value={selectedListing.status} onChange={e => setSelectedListing({ ...selectedListing, status: e.target.value })} style={inputStyle}>{LISTING_STATUSES.map(status => <option key={status}>{status}</option>)}</select></Field>
         </div>
         <Field label="Title"><input value={selectedListing.title} onChange={e => setSelectedListing({ ...selectedListing, title: e.target.value })} style={inputStyle} /></Field>
         <div className="cms-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
@@ -574,6 +577,9 @@ function Records({ collections }) {
   const groups = [
     { key: 'payments', label: 'Payments', rows: collections.payments, columns: [['payment_reference', 'Reference'], ['amount', 'Amount'], ['status', 'Status']] },
     { key: 'disputes', label: 'Disputes', rows: collections.disputes, columns: [['issue', 'Issue'], ['status', 'Status']] },
+    { key: 'refunds', label: 'Refunds', rows: collections.refunds || [], columns: [['status', 'Status'], ['reason', 'Reason'], ['admin_notes', 'Notes']] },
+    { key: 'reviews', label: 'Reviews', rows: collections.reviews || [], columns: [['rating', 'Rating'], ['comment', 'Comment']] },
+    { key: 'audit', label: 'Audit Logs', rows: collections.auditLogs || [], columns: [['action', 'Action'], ['target_type', 'Target'], ['created_at', 'Date']] },
     { key: 'viewings', label: 'Listing Snapshot', rows: collections.listings, columns: [['title', 'Listing'], ['status', 'Status'], ['price', 'Rent']] },
     { key: 'users', label: 'User Snapshot', rows: collections.users, columns: [['full_name', 'Name'], ['role', 'Role'], ['phone', 'Phone']] },
   ]

@@ -63,6 +63,17 @@ export const api = {
     confirm: (id) => apiRequest(`/payments/${id}/confirm`, { method: 'POST' }),
     reject: (id) => apiRequest(`/payments/${id}/reject`, { method: 'POST' }),
   },
+  engagement: {
+    notifications: () => apiRequest('/notifications'),
+    markNotificationRead: (id) => apiRequest(`/notifications/${id}/read`, { method: 'PATCH' }),
+    savedListings: () => apiRequest('/saved-listings'),
+    saveListing: (id) => apiRequest(`/listings/${id}/save`, { method: 'POST' }),
+    unsaveListing: (id) => apiRequest(`/listings/${id}/save`, { method: 'DELETE' }),
+    reviews: (id) => apiRequest(`/listings/${id}/reviews`),
+    createReview: (id, body) => apiRequest(`/listings/${id}/reviews`, { method: 'POST', body }),
+    availability: (id) => apiRequest(`/listings/${id}/availability`),
+    saveAvailability: (id, body) => apiRequest(`/listings/${id}/availability`, { method: 'POST', body }),
+  },
   admin: {
     overview: () => apiRequest('/admin/overview'),
     collections: () => apiRequest('/admin/collections'),

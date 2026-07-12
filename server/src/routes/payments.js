@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth.js'
 import { query, transaction } from '../db.js'
 import { validate } from '../middleware.js'
+import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify/'
@@ -167,6 +168,29 @@ router.post('/paystack/callback', requireAuth, requireRole('student'), validate(
         [String(paystackTransaction.id || paystackTransaction.reference), row.id],
       )
 
+      const admins = await client.query(`SELECT id FROM profiles WHERE role = 'admin'`)
+      await Promise.all(admins.rows.map(admin => createNotification(client, {
+        userId: admin.id,
+        type: 'payment_review',
+        title: 'Payment needs confirmation',
+        body: `Reference ${row.payment_reference} is verified and pending admin confirmation.`,
+        link: '/admin/pending-allocations',
+      })))
+      await createNotification(client, {
+        userId: row.landlord_id,
+        type: 'payment_pending',
+        title: 'A student paid for your listing',
+        body: 'AFIT Nests admin is reviewing the allocation.',
+        link: '/landlord/listings',
+      })
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: 'payment.verified',
+        targetType: 'payment',
+        targetId: row.id,
+        metadata: { reference: row.payment_reference },
+      })
+
       return updated.rows[0]
     })
 
@@ -228,6 +252,27 @@ router.post('/:id/confirm', requireAuth, requireRole('admin'), validate(idSchema
          RETURNING *`,
         [row.id],
       )
+      await createNotification(client, {
+        userId: row.student_id,
+        type: 'payment_confirmed',
+        title: 'Accommodation confirmed',
+        body: 'Your accommodation allocation has been confirmed.',
+        link: '/student/dashboard',
+      })
+      await createNotification(client, {
+        userId: row.landlord_id,
+        type: 'payment_confirmed',
+        title: 'Allocation confirmed',
+        body: 'A paid accommodation allocation was confirmed.',
+        link: '/landlord/listings',
+      })
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: 'payment.confirmed',
+        targetType: 'payment',
+        targetId: row.id,
+        metadata: { listingId: row.listing_id },
+      })
       return updated.rows[0]
     })
 
@@ -275,6 +320,33 @@ router.post('/:id/reject', requireAuth, requireRole('admin'), validate(idSchema)
          RETURNING *`,
         [row.id],
       )
+      await client.query(
+        `INSERT INTO refunds (payment_id, status, reason, admin_notes)
+         VALUES ($1, 'requested', 'Allocation rejected by admin', 'Manual refund follow-up required unless Paystack refund automation is configured.')
+         ON CONFLICT DO NOTHING`,
+        [row.id],
+      )
+      await createNotification(client, {
+        userId: row.student_id,
+        type: 'payment_rejected',
+        title: 'Accommodation payment rejected',
+        body: 'The allocation was rejected and marked for refund follow-up.',
+        link: '/student/dashboard',
+      })
+      await createNotification(client, {
+        userId: row.landlord_id,
+        type: 'payment_rejected',
+        title: 'Allocation rejected',
+        body: 'The listing has been reopened.',
+        link: '/landlord/listings',
+      })
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: 'payment.rejected',
+        targetType: 'payment',
+        targetId: row.id,
+        metadata: { listingId: row.listing_id },
+      })
       return updated.rows[0]
     })
 

@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { optionalAuth, requireAuth } from '../auth.js'
-import { query } from '../db.js'
+import { query, transaction } from '../db.js'
 import { validate } from '../middleware.js'
+import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
 
-const allowedTables = ['profiles', 'listings', 'viewings', 'chats', 'messages', 'payments', 'disputes']
+const allowedTables = ['profiles', 'listings', 'viewings', 'chats', 'messages', 'payments', 'disputes', 'notifications', 'saved_listings', 'reviews', 'audit_logs', 'refunds']
 const allowedOrderColumns = new Set(['created_at', 'updated_at', 'price', 'title', 'status'])
 
 const requestSchema = z.object({
@@ -37,7 +38,7 @@ const dataListingInsertSchema = z.object({
   address: z.string().min(5).max(240),
   amenities: z.array(z.string().max(80)).default([]),
   photos: z.array(z.string().url()).default([]),
-  status: z.enum(['available', 'pending_confirmation', 'occupied']).default('available'),
+  status: z.enum(['pending_review', 'rejected', 'available', 'pending_confirmation', 'occupied']).default('pending_review'),
   lat: z.coerce.number().optional().nullable(),
   lng: z.coerce.number().optional().nullable(),
   landlord_id: z.uuid().optional(),
@@ -298,6 +299,52 @@ async function handleSelect(table, body, req, res) {
     return sendRows(res, rows, body)
   }
 
+  if (table === 'notifications') {
+    clauses.push('user_id = $1')
+    params.push(req.user.id)
+    addFilters(clauses, params, body.filters, new Set(['id', 'read_at']))
+    const { rows } = await query(
+      `SELECT * FROM notifications WHERE ${clauses.join(' AND ')} ORDER BY ${orderSql(body.order)} LIMIT ${limit}`,
+      params,
+    )
+    return sendRows(res, rows, body)
+  }
+
+  if (table === 'saved_listings') {
+    if (!assertRole(req, res, ['student'])) return null
+    const { rows } = await query(
+      `SELECT s.*, l.title AS listing_title, l.price AS listing_price, l.photos AS listing_photos
+       FROM saved_listings s
+       JOIN listings l ON l.id = s.listing_id
+       WHERE s.student_id = $1
+       ORDER BY s.created_at DESC
+       LIMIT ${limit}`,
+      [req.user.id],
+    )
+    return sendRows(res, rows, body)
+  }
+
+  if (table === 'reviews') {
+    addFilters(clauses, params, body.filters, new Set(['id', 'listing_id', 'student_id', 'landlord_id']))
+    if (req.user.role !== 'admin') {
+      params.push(req.user.id)
+      clauses.push(`(student_id = $${params.length} OR landlord_id = $${params.length})`)
+    }
+    const { rows } = await query(
+      `SELECT * FROM reviews ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''} ORDER BY ${orderSql(body.order)} LIMIT ${limit}`,
+      params,
+    )
+    return sendRows(res, rows, body)
+  }
+
+  if (table === 'audit_logs' || table === 'refunds') {
+    if (!assertRole(req, res, ['admin'])) return null
+    const { rows } = await query(
+      `SELECT * FROM ${table} ORDER BY ${orderSql(body.order)} LIMIT ${limit}`,
+    )
+    return sendRows(res, rows, body)
+  }
+
   return res.status(400).json({ error: 'Unsupported collection.' })
 }
 
@@ -310,27 +357,32 @@ async function handleInsert(table, body, req, res) {
     if (!listing) return null
     const landlordId = req.user.role === 'admin' ? listing.landlord_id : req.user.id
     if (!landlordId) return res.status(400).json({ error: 'Admin-created listings must be assigned to a landlord.' })
-    const { rows } = await query(
-      `INSERT INTO listings (landlord_id, title, type, price, distance, description, address, amenities, photos, status, available, lat, lng)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12, $13)
-       RETURNING *`,
-      [
-        landlordId,
-        listing.title,
-        listing.type,
-        listing.price,
-        listing.distance ?? null,
-        listing.description || '',
-        listing.address,
-        JSON.stringify(listing.amenities || []),
-        JSON.stringify(listing.photos || []),
-        listing.status,
-        listing.status === 'available',
-        listing.lat ?? null,
-        listing.lng ?? null,
-      ],
-    )
-    return res.status(201).json({ data: body.single ? rows[0] : rows })
+    const created = await transaction(async (client) => {
+      const status = req.user.role === 'admin' ? listing.status : 'pending_review'
+      const { rows } = await client.query(
+        `INSERT INTO listings (landlord_id, title, type, price, distance, description, address, amenities, photos, status, available, lat, lng)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12, $13)
+         RETURNING *`,
+        [
+          landlordId,
+          listing.title,
+          listing.type,
+          listing.price,
+          listing.distance ?? null,
+          listing.description || '',
+          listing.address,
+          JSON.stringify(listing.amenities || []),
+          JSON.stringify(listing.photos || []),
+          status,
+          status === 'available',
+          listing.lat ?? null,
+          listing.lng ?? null,
+        ],
+      )
+      await writeAuditLog(client, { actorId: req.user.id, action: 'listing.created', targetType: 'listing', targetId: rows[0].id, metadata: { status } })
+      return rows
+    })
+    return res.status(201).json({ data: body.single ? created[0] : created })
   }
 
   if (table === 'viewings') {
@@ -343,6 +395,11 @@ async function handleInsert(table, body, req, res) {
        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
        RETURNING *`,
       [req.user.id, listing.landlord_id, listing.id, payload.date, payload.time, payload.message || ''],
+    )
+    await query(
+      `INSERT INTO notifications (user_id, type, title, body, link)
+       VALUES ($1, 'viewing_request', 'New viewing request', $2, '/landlord/viewings')`,
+      [listing.landlord_id, `A student requested to view your listing.`],
     )
     return res.status(201).json({ data: body.single ? rows[0] : rows })
   }
@@ -368,6 +425,16 @@ async function handleInsert(table, body, req, res) {
     const { rows } = await query(
       `INSERT INTO messages (chat_id, sender_id, text) VALUES ($1, $2, $3) RETURNING *`,
       [payload.chat_id, req.user.id, String(payload.text || '').trim()],
+    )
+    const target = await query(
+      `SELECT student_id, landlord_id FROM chats WHERE id = $1`,
+      [payload.chat_id],
+    )
+    const recipientId = target.rows[0]?.student_id === req.user.id ? target.rows[0]?.landlord_id : target.rows[0]?.student_id
+    if (recipientId) await query(
+      `INSERT INTO notifications (user_id, type, title, body, link)
+       VALUES ($1, 'chat_message', 'New chat message', 'You have a new message.', $2)`,
+      [recipientId, req.user.role === 'landlord' ? '/student/chats' : '/landlord/chats'],
     )
     return res.status(201).json({ data: body.single ? rows[0] : rows })
   }
@@ -402,9 +469,12 @@ async function handleUpdate(table, body, req, res) {
   if (table === 'listings') {
     const listing = parsePayload(dataListingUpdateSchema, payload, res)
     if (!listing) return null
-    const ownerResult = await query(`SELECT landlord_id FROM listings WHERE id = $1`, [id])
+    const ownerResult = await query(`SELECT landlord_id, status FROM listings WHERE id = $1`, [id])
     if (!ownerResult.rows[0]) return res.status(404).json({ error: 'Listing not found.' })
     if (req.user.role !== 'admin' && ownerResult.rows[0].landlord_id !== req.user.id) return res.status(403).json({ error: 'Permission denied.' })
+    if (req.user.role !== 'admin' && listing.status && !['occupied'].includes(listing.status)) {
+      return res.status(403).json({ error: 'Only admins can publish, approve, or reject listings.' })
+    }
     const { rows } = await query(
       `UPDATE listings
        SET title = COALESCE($2, title),

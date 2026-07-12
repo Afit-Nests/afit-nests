@@ -38,6 +38,8 @@ export async function getPersonalBackendOverview() {
     students: overview.students || 0,
     openDisputes: overview.open_disputes || 0,
     pendingPayments: overview.pending_payments || 0,
+    pendingListings: overview.pending_listings || 0,
+    unreadNotifications: overview.unread_notifications || 0,
     cmsPages: overview.cms_pages || 0,
   }
 }
@@ -90,6 +92,9 @@ export async function listBackendCollections() {
     users: collections.users || [],
     payments: collections.payments || [],
     disputes: collections.disputes || [],
+    auditLogs: collections.auditLogs || [],
+    reviews: collections.reviews || [],
+    refunds: collections.refunds || [],
   }
 }
 

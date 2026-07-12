@@ -2,9 +2,10 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth.js'
-import { query } from '../db.js'
+import { query, transaction } from '../db.js'
 import { validate } from '../middleware.js'
 import { passwordSchema } from '../passwordPolicy.js'
+import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -42,7 +43,7 @@ const adminListingSchema = z.object({
     address: z.string().min(5).max(240),
     amenities: z.array(z.string().max(80)).default([]),
     photos: z.array(z.string().url()).default([]),
-    status: z.enum(['available', 'pending_confirmation', 'occupied']).default('available'),
+    status: z.enum(['pending_review', 'rejected', 'available', 'pending_confirmation', 'occupied']).default('available'),
     lat: z.number().optional().nullable(),
     lng: z.number().optional().nullable(),
   }),
@@ -91,7 +92,9 @@ router.get('/overview', requireAuth, requireRole('admin'), async (req, res, next
         (SELECT count(*)::int FROM profiles WHERE role = 'student') AS students,
         (SELECT count(*)::int FROM disputes WHERE status = 'open') AS open_disputes,
         (SELECT count(*)::int FROM payments WHERE status = 'paid_pending_confirmation') AS pending_payments,
-        (SELECT count(*)::int FROM cms_pages) AS cms_pages`,
+        (SELECT count(*)::int FROM cms_pages) AS cms_pages,
+        (SELECT count(*)::int FROM listings WHERE status = 'pending_review') AS pending_listings,
+        (SELECT count(*)::int FROM notifications WHERE read_at IS NULL) AS unread_notifications`,
     )
     res.json({ overview: rows[0] })
   } catch (error) {
@@ -115,11 +118,14 @@ router.get('/users', requireAuth, requireRole('admin'), async (req, res, next) =
 
 router.get('/collections', requireAuth, requireRole('admin'), async (req, res, next) => {
   try {
-    const [listings, users, payments, disputes] = await Promise.all([
+    const [listings, users, payments, disputes, auditLogs, reviews, refunds] = await Promise.all([
       query(`SELECT * FROM listings ORDER BY created_at DESC LIMIT 100`),
       query(`SELECT id, email, phone, role, full_name, matric_number, department, nin, address, verified, created_at, updated_at FROM profiles ORDER BY created_at DESC LIMIT 100`),
       query(`SELECT * FROM payments ORDER BY created_at DESC LIMIT 50`),
       query(`SELECT * FROM disputes ORDER BY created_at DESC LIMIT 50`),
+      query(`SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100`),
+      query(`SELECT * FROM reviews ORDER BY created_at DESC LIMIT 100`),
+      query(`SELECT * FROM refunds ORDER BY created_at DESC LIMIT 100`),
     ])
 
     res.json({
@@ -127,6 +133,9 @@ router.get('/collections', requireAuth, requireRole('admin'), async (req, res, n
       users: users.rows,
       payments: payments.rows,
       disputes: disputes.rows,
+      auditLogs: auditLogs.rows,
+      reviews: reviews.rows,
+      refunds: refunds.rows,
     })
   } catch (error) {
     next(error)
@@ -205,15 +214,33 @@ router.patch('/users/:id/verification', requireAuth, requireRole('admin'), valid
   body: z.object({ verified: z.boolean() }),
 })), async (req, res, next) => {
   try {
-    const { rows } = await query(
-      `UPDATE profiles
-       SET verified = $1, updated_at = now()
-       WHERE id = $2 AND role = 'landlord'
-       RETURNING id, email, phone, role, full_name, verified`,
-      [req.validated.body.verified, req.validated.params.id],
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Landlord not found.' })
-    res.json({ user: rows[0] })
+    const user = await transaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE profiles
+         SET verified = $1, updated_at = now()
+         WHERE id = $2 AND role = 'landlord'
+         RETURNING id, email, phone, role, full_name, verified`,
+        [req.validated.body.verified, req.validated.params.id],
+      )
+      if (!rows[0]) return null
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: req.validated.body.verified ? 'landlord.verified' : 'landlord.unverified',
+        targetType: 'profile',
+        targetId: rows[0].id,
+        metadata: { verified: rows[0].verified },
+      })
+      await createNotification(client, {
+        userId: rows[0].id,
+        type: 'landlord_verification',
+        title: rows[0].verified ? 'Your landlord account is verified' : 'Your landlord verification changed',
+        body: rows[0].verified ? 'You can now manage and submit listings.' : 'Please contact AFIT Nests support for the next step.',
+        link: '/landlord/dashboard',
+      })
+      return rows[0]
+    })
+    if (!user) return res.status(404).json({ error: 'Landlord not found.' })
+    res.json({ user })
   } catch (error) {
     next(error)
   }
@@ -263,31 +290,50 @@ router.patch('/listings/:id', requireAuth, requireRole('admin'), validate(adminL
       nextListing.landlord_id = req.validated.body.landlordId
     }
 
-    const { rows } = await query(
-      `UPDATE listings
-       SET landlord_id = $2, title = $3, type = $4, price = $5, distance = $6, description = $7,
-           address = $8, amenities = $9::jsonb, photos = $10::jsonb, status = $11, available = $12,
-           lat = $13, lng = $14, updated_at = now()
-       WHERE id = $1
-       RETURNING *`,
-      [
-        req.validated.params.id,
-        nextListing.landlord_id,
-        nextListing.title,
-        nextListing.type,
-        nextListing.price,
-        nextListing.distance,
-        nextListing.description,
-        nextListing.address,
-        JSON.stringify(nextListing.amenities || []),
-        JSON.stringify(nextListing.photos || []),
-        nextListing.status,
-        nextListing.status === 'available',
-        nextListing.lat,
-        nextListing.lng,
-      ],
-    )
-    res.json({ listing: rows[0] })
+    const listing = await transaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE listings
+         SET landlord_id = $2, title = $3, type = $4, price = $5, distance = $6, description = $7,
+             address = $8, amenities = $9::jsonb, photos = $10::jsonb, status = $11, available = $12,
+             lat = $13, lng = $14, updated_at = now()
+         WHERE id = $1
+         RETURNING *`,
+        [
+          req.validated.params.id,
+          nextListing.landlord_id,
+          nextListing.title,
+          nextListing.type,
+          nextListing.price,
+          nextListing.distance,
+          nextListing.description,
+          nextListing.address,
+          JSON.stringify(nextListing.amenities || []),
+          JSON.stringify(nextListing.photos || []),
+          nextListing.status,
+          nextListing.status === 'available',
+          nextListing.lat,
+          nextListing.lng,
+        ],
+      )
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: 'listing.updated',
+        targetType: 'listing',
+        targetId: rows[0].id,
+        metadata: { status: rows[0].status, previousStatus: existingResult.rows[0].status },
+      })
+      if (rows[0].status !== existingResult.rows[0].status) {
+        await createNotification(client, {
+          userId: rows[0].landlord_id,
+          type: 'listing_status',
+          title: `Listing ${rows[0].status.replace('_', ' ')}`,
+          body: rows[0].title,
+          link: '/landlord/listings',
+        })
+      }
+      return rows[0]
+    })
+    res.json({ listing })
   } catch (error) {
     next(error)
   }

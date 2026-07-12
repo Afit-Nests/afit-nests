@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth.js'
-import { query } from '../db.js'
+import { query, transaction } from '../db.js'
 import { validate } from '../middleware.js'
+import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
 
@@ -16,6 +17,7 @@ const listingSchema = z.object({
     address: z.string().min(5).max(240),
     amenities: z.array(z.string().max(80)).default([]),
     photos: z.array(z.string().url()).default([]),
+    status: z.enum(['pending_review', 'available', 'rejected', 'pending_confirmation', 'occupied']).optional(),
     lat: z.number().optional().nullable(),
     lng: z.number().optional().nullable(),
     landlordId: z.uuid().optional(),
@@ -78,25 +80,49 @@ router.post('/', requireAuth, requireRole('landlord', 'admin'), validate(listing
       landlordId = listing.landlordId
     }
 
-    const { rows } = await query(
-      `INSERT INTO listings (landlord_id, title, type, price, distance, description, address, amenities, photos, lat, lng)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11)
-       RETURNING *`,
-      [
-        landlordId,
-        listing.title,
-        listing.type,
-        listing.price,
-        listing.distance ?? null,
-        listing.description ?? '',
-        listing.address,
-        JSON.stringify(listing.amenities),
-        JSON.stringify(listing.photos),
-        listing.lat ?? null,
-        listing.lng ?? null,
-      ],
-    )
-    res.status(201).json({ listing: rows[0] })
+    const created = await transaction(async (client) => {
+      const status = req.user.role === 'admin' ? (listing.status || 'available') : 'pending_review'
+      const result = await client.query(
+        `INSERT INTO listings (landlord_id, title, type, price, distance, description, address, amenities, photos, status, available, lat, lng)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10, $11, $12, $13)
+         RETURNING *`,
+        [
+          landlordId,
+          listing.title,
+          listing.type,
+          listing.price,
+          listing.distance ?? null,
+          listing.description ?? '',
+          listing.address,
+          JSON.stringify(listing.amenities),
+          JSON.stringify(listing.photos),
+          status,
+          status === 'available',
+          listing.lat ?? null,
+          listing.lng ?? null,
+        ],
+      )
+      const createdListing = result.rows[0]
+      await writeAuditLog(client, {
+        actorId: req.user.id,
+        action: 'listing.created',
+        targetType: 'listing',
+        targetId: createdListing.id,
+        metadata: { status: createdListing.status },
+      })
+      if (req.user.role !== 'admin') {
+        const admins = await client.query(`SELECT id FROM profiles WHERE role = 'admin'`)
+        await Promise.all(admins.rows.map(admin => createNotification(client, {
+          userId: admin.id,
+          type: 'listing_review',
+          title: 'Listing needs review',
+          body: `${createdListing.title} was submitted by a landlord.`,
+          link: '/admin/cms',
+        })))
+      }
+      return createdListing
+    })
+    res.status(201).json({ listing: created })
   } catch (error) {
     next(error)
   }
@@ -110,10 +136,13 @@ router.patch('/:id', requireAuth, requireRole('landlord', 'admin'), validate(lis
     if (!existingRows[0]) return res.status(404).json({ error: 'Listing not found or not yours.' })
 
     const nextListing = { ...existingRows[0], ...req.validated.body }
+    if (req.user.role !== 'admin') {
+      nextListing.status = existingRows[0].status === 'rejected' ? 'pending_review' : existingRows[0].status
+    }
     const { rows } = await query(
       `UPDATE listings
        SET title = $2, type = $3, price = $4, distance = $5, description = $6, address = $7,
-           amenities = $8::jsonb, photos = $9::jsonb, lat = $10, lng = $11, updated_at = now()
+           amenities = $8::jsonb, photos = $9::jsonb, status = $10, available = $11, lat = $12, lng = $13, updated_at = now()
        WHERE id = $1
        RETURNING *`,
       [
@@ -126,6 +155,8 @@ router.patch('/:id', requireAuth, requireRole('landlord', 'admin'), validate(lis
         nextListing.address,
         JSON.stringify(nextListing.amenities || []),
         JSON.stringify(nextListing.photos || []),
+        nextListing.status,
+        nextListing.status === 'available',
         nextListing.lat,
         nextListing.lng,
       ],

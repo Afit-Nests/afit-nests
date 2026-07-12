@@ -9,6 +9,7 @@ import paymentRoutes from './routes/payments.js'
 import adminRoutes from './routes/admin.js'
 import dataRoutes from './routes/data.js'
 import uploadRoutes from './routes/uploads.js'
+import engagementRoutes from './routes/engagement.js'
 import { apiLimiter, attachCsrfToken, csrfProtection } from './middleware.js'
 
 const app = express()
@@ -62,6 +63,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/listings', listingRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api', engagementRoutes)
 app.use('/api/data', dataRoutes)
 app.use('/api/uploads', uploadRoutes)
 

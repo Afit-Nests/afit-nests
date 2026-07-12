@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { backend } from '../../lib/personalBackendClient'
+import { api } from '../../lib/apiClient'
 import { useAuth } from '../../context/AuthContext'
 import { startAccommodationPayment } from '../../lib/paystack'
-import { MapPin, MessageSquare, Calendar, CreditCard, BadgeCheck, Clock, Circle, ChevronLeft, ChevronRight, Home, CheckCircle, Zap, Droplets, ShowerHead, ChefHat, Car, Lock, Fence } from 'lucide-react'
+import { MapPin, MessageSquare, Calendar, CreditCard, BadgeCheck, Clock, Circle, ChevronLeft, ChevronRight, Home, CheckCircle, Zap, Droplets, ShowerHead, ChefHat, Car, Lock, Fence, Heart, Star } from 'lucide-react'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
 
@@ -31,6 +32,9 @@ export default function SingleListingPage() {
   const [viewingSuccess, setViewingSuccess] = useState(false)
   const [currentPhoto, setCurrentPhoto] = useState(0)
   const [paymentLoading, setPaymentLoading] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [reviews, setReviews] = useState([])
+  const [availability, setAvailability] = useState([])
 
   useEffect(() => { fetchListing() }, [id])
 
@@ -41,7 +45,26 @@ export default function SingleListingPage() {
       .eq('id', id)
       .single()
     if (!error) setListing(data)
+    api.engagement.reviews(id).then(result => setReviews(result.reviews || [])).catch(() => null)
+    api.engagement.availability(id).then(result => setAvailability(result.availability || [])).catch(() => null)
+    if (profile?.role === 'student') {
+      api.engagement.savedListings()
+        .then(result => setSaved((result.listings || []).some(item => item.id === id)))
+        .catch(() => null)
+    }
     setLoading(false)
+  }
+
+  const toggleSaved = async () => {
+    if (!user) { navigate('/student/login'); return }
+    if (profile?.role !== 'student') { alert('Only students can save listings'); return }
+    if (saved) {
+      await api.engagement.unsaveListing(listing.id)
+      setSaved(false)
+    } else {
+      await api.engagement.saveListing(listing.id)
+      setSaved(true)
+    }
   }
 
   const handleStartChat = async () => {
@@ -170,6 +193,9 @@ export default function SingleListingPage() {
             <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.8rem', border: '1px solid var(--beige-dark)', marginBottom: '1.2rem' }}>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--orange)', marginBottom: '0.5rem' }}>{listing.type}</div>
               <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.8rem', fontWeight: 900, color: 'var(--blue-dark)', marginBottom: '0.8rem' }}>{listing.title}</h1>
+              <button onClick={toggleSaved} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', background: saved ? 'rgba(249,115,22,0.1)' : 'var(--beige)', color: saved ? 'var(--orange)' : 'var(--text)', border: '1px solid var(--beige-dark)', borderRadius: '50px', padding: '0.45rem 0.9rem', fontWeight: 700, cursor: 'pointer', marginBottom: '0.8rem' }}>
+                <Heart size={16} fill={saved ? 'currentColor' : 'none'} /> {saved ? 'Saved' : 'Save Listing'}
+              </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
                 <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.8rem', fontWeight: 900, color: 'var(--blue)' }}>
                   ₦{listing.price.toLocaleString()}
@@ -200,6 +226,31 @@ export default function SingleListingPage() {
                 </div>
               </div>
             )}
+
+            <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.8rem', border: '1px solid var(--beige-dark)', marginTop: '1.2rem' }}>
+              <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--blue)', marginBottom: '1rem' }}>Viewing Availability</h3>
+              {availability.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No fixed viewing schedule has been published yet.</p>
+              ) : availability.map(slot => (
+                <div key={slot.id} style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.45rem' }}>
+                  Day {slot.weekday}: {String(slot.start_time).slice(0, 5)} - {String(slot.end_time).slice(0, 5)}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.8rem', border: '1px solid var(--beige-dark)', marginTop: '1.2rem' }}>
+              <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--blue)', marginBottom: '1rem' }}>Reviews</h3>
+              {reviews.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No student reviews yet.</p>
+              ) : reviews.map(review => (
+                <div key={review.id} style={{ borderTop: '1px solid var(--beige-dark)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--orange)', fontWeight: 800 }}>
+                    <Star size={15} fill="currentColor" /> {review.rating}/5
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.35rem' }}>{review.comment || 'No comment added.'}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* RIGHT */}
