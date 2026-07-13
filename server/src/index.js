@@ -11,6 +11,7 @@ import dataRoutes from './routes/data.js'
 import uploadRoutes from './routes/uploads.js'
 import engagementRoutes from './routes/engagement.js'
 import { apiLimiter, attachCsrfToken, csrfProtection } from './middleware.js'
+import { assertStrongSecret } from './secrets.js'
 
 const app = express()
 const port = Number(process.env.PORT || 4000)
@@ -19,8 +20,12 @@ const clientOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .map(origin => origin.trim())
   .filter(Boolean)
 
-if (!process.env.COOKIE_SECRET || process.env.COOKIE_SECRET.length < 32) {
-  throw new Error('COOKIE_SECRET must be at least 32 characters.')
+assertStrongSecret('COOKIE_SECRET')
+
+// Returning password-reset links in the API response is a development-only aid.
+// Enabling it in production would expose any account to takeover by email alone.
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_RESET_URL === 'true') {
+  throw new Error('ALLOW_DEV_RESET_URL must not be enabled in production.')
 }
 
 app.set('trust proxy', 1)

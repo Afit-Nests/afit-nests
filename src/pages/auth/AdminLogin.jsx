@@ -10,6 +10,8 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [mfaRequired, setMfaRequired] = useState(false)
+  const [totpCode, setTotpCode] = useState('')
 
   const handleChange = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
@@ -21,11 +23,21 @@ export default function AdminLogin() {
       setError('Please enter your admin email and password.')
       return
     }
+    if (mfaRequired && !/^\d{6}$/.test(totpCode)) {
+      setError('Enter the 6-digit code from your authenticator app.')
+      return
+    }
 
     setLoading(true)
-    const { error: loginError } = await signInAdmin(form)
-    if (loginError) {
-      setError(loginError.message || 'Invalid admin credentials.')
+    const result = await signInAdmin({ ...form, totpCode: mfaRequired ? totpCode : undefined })
+    if (result.mfaRequired) {
+      setMfaRequired(true)
+      setError(null)
+      setLoading(false)
+      return
+    }
+    if (result.error) {
+      setError(result.error.message || 'Invalid admin credentials.')
       setLoading(false)
       return
     }
@@ -64,21 +76,44 @@ export default function AdminLogin() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <label style={labelStyle}>Admin Email</label>
-              <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="admin@example.com" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>Password</label>
-              <div style={{ position: 'relative' }}>
-                <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="Your password" style={{ ...inputStyle, paddingRight: '3rem' }} />
-                <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            {!mfaRequired ? (
+              <>
+                <div>
+                  <label style={labelStyle}>Admin Email</label>
+                  <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="admin@example.com" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Password</label>
+                  <div style={{ position: 'relative' }}>
+                    <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="Your password" style={{ ...inputStyle, paddingRight: '3rem' }} />
+                    <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <label style={labelStyle}>Authentication Code</label>
+                <input
+                  name="totpCode"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(e) => { setTotpCode(e.target.value.replace(/\D/g, '')); setError(null) }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
+                  placeholder="123456"
+                  autoFocus
+                  style={{ ...inputStyle, letterSpacing: '0.3em', textAlign: 'center', fontSize: '1.1rem' }}
+                />
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                  Enter the 6-digit code from your authenticator app.
+                </p>
               </div>
-            </div>
+            )}
             <button onClick={handleSubmit} disabled={loading} style={{ background: loading ? 'var(--text-muted)' : 'var(--orange)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '1rem', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: loading ? 'none' : '0 4px 20px rgba(249,115,22,0.35)' }}>
-              {loading ? 'Signing In...' : 'Sign In as Admin'}
+              {loading ? 'Signing In...' : mfaRequired ? 'Verify & Sign In' : 'Sign In as Admin'}
             </button>
           </div>
         </div>

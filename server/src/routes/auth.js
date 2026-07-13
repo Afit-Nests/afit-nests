@@ -6,9 +6,23 @@ import { clearSessionCookie, requireAuth, setSessionCookie, signSession } from '
 import { query } from '../db.js'
 import { loginLimiter, validate } from '../middleware.js'
 import { passwordSchema } from '../passwordPolicy.js'
+import { generateSecret, verifyTotp, otpauthURL } from '../totp.js'
 
 const router = Router()
 const PASSWORD_COST = 12
+// A precomputed bcrypt hash of a random string. Compared against when no account is
+// found so the login response time does not reveal whether an account exists.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), PASSWORD_COST)
+
+// Per-account lockout. After LOCK_THRESHOLD consecutive failures the account is
+// locked for an exponentially growing window (capped), which stops a distributed
+// brute force that the per-IP limiter alone cannot. Attempts made while already
+// locked are rejected without a bcrypt check and do not extend the window, so an
+// attacker cannot lock a victim out indefinitely.
+const LOCK_THRESHOLD = 5
+const LOCK_CAP_MINUTES = 15
+const lockMinutesFor = (attempts) =>
+  Math.min(LOCK_CAP_MINUTES, 2 ** Math.max(0, attempts - LOCK_THRESHOLD))
 
 const registerStudentSchema = z.object({
   body: z.object({
@@ -37,7 +51,12 @@ const loginSchema = z.object({
     phone: z.string().min(7).max(30).optional(),
     password: z.string().min(1).max(128),
     role: z.enum(['student', 'landlord', 'admin']),
+    totpCode: z.string().regex(/^\d{6}$/).optional(),
   }).refine(value => value.email || value.phone, 'Email or phone is required.'),
+})
+
+const mfaCodeSchema = z.object({
+  body: z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your authenticator app.') }),
 })
 
 const forgotPasswordSchema = z.object({
@@ -62,6 +81,7 @@ const publicProfile = (row) => ({
   matric_number: row.matric_number,
   department: row.department,
   verified: row.verified,
+  totp_enabled: row.totp_enabled ?? false,
   created_at: row.created_at,
 })
 
@@ -115,15 +135,58 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
       : ['email = $1', email?.toLowerCase()]
 
     const { rows } = await query(
-      `SELECT id, email, phone, password_hash, role, full_name, matric_number, department, verified, session_version, created_at
+      `SELECT id, email, phone, password_hash, role, full_name, matric_number, department, verified,
+              session_version, failed_login_attempts, locked_until, totp_secret, totp_enabled, created_at
        FROM profiles
        WHERE ${lookup[0]} AND role = $2`,
       [lookup[1], role],
     )
 
     const profile = rows[0]
-    if (!profile || !(await bcrypt.compare(password, profile.password_hash))) {
-      return res.status(401).json({ error: 'Invalid login details.' })
+    const { totpCode } = req.validated.body
+    const invalid = () => res.status(401).json({ error: 'Invalid login details.' })
+    const registerFailure = async () => {
+      const attempts = (profile.failed_login_attempts || 0) + 1
+      const lockMinutes = attempts >= LOCK_THRESHOLD ? lockMinutesFor(attempts) : 0
+      await query(
+        `UPDATE profiles
+         SET failed_login_attempts = $2,
+             locked_until = CASE WHEN $3::int > 0 THEN now() + ($3 || ' minutes')::interval ELSE locked_until END,
+             updated_at = now()
+         WHERE id = $1`,
+        [profile.id, attempts, lockMinutes],
+      )
+    }
+
+    // Locked account: burn constant time, do not run bcrypt, do not extend the lock.
+    if (profile?.locked_until && new Date(profile.locked_until) > new Date()) {
+      await bcrypt.compare(password, DUMMY_PASSWORD_HASH)
+      return invalid()
+    }
+
+    const passwordOk = await bcrypt.compare(password, profile?.password_hash || DUMMY_PASSWORD_HASH)
+    if (!profile || !passwordOk) {
+      if (profile) await registerFailure()
+      return invalid()
+    }
+
+    // Second factor. Only reached after a correct password, so telling the client
+    // that MFA is required (or that a code was wrong) does not aid enumeration.
+    // Wrong codes count toward the same lockout, making a 6-digit brute force futile.
+    if (profile.totp_enabled) {
+      if (!totpCode) return res.json({ mfaRequired: true })
+      if (!verifyTotp(profile.totp_secret, totpCode)) {
+        await registerFailure()
+        return res.status(401).json({ error: 'Invalid authentication code.' })
+      }
+    }
+
+    // Success: clear any accumulated failures before issuing the session.
+    if (profile.failed_login_attempts > 0 || profile.locked_until) {
+      await query(
+        `UPDATE profiles SET failed_login_attempts = 0, locked_until = NULL, updated_at = now() WHERE id = $1`,
+        [profile.id],
+      )
     }
 
     const token = signSession(profile)
@@ -189,7 +252,8 @@ router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), asyn
 
     await query(
       `UPDATE profiles
-       SET password_hash = $1, session_version = session_version + 1, updated_at = now()
+       SET password_hash = $1, session_version = session_version + 1,
+           failed_login_attempts = 0, locked_until = NULL, updated_at = now()
        WHERE id = $2`,
       [passwordHash, resetToken.profile_id],
     )
@@ -202,6 +266,61 @@ router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), asyn
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
+})
+
+// --- Multi-factor authentication (TOTP) ---
+
+// Begin enrollment: generate a secret (stored but not yet active) and return the
+// provisioning details. Requires re-confirmation before it takes effect.
+router.post('/mfa/setup', requireAuth, async (req, res, next) => {
+  try {
+    if (req.user.totp_enabled) return res.status(409).json({ error: 'MFA is already enabled. Disable it first to re-enroll.' })
+    const secret = generateSecret()
+    await query(
+      `UPDATE profiles SET totp_secret = $1, totp_enabled = false, updated_at = now() WHERE id = $2`,
+      [secret, req.user.id],
+    )
+    res.json({
+      secret,
+      otpauthUrl: otpauthURL({ secret, label: req.user.email || req.user.phone || req.user.id, issuer: 'AFIT Nests' }),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Confirm enrollment: verify a code against the pending secret, then activate.
+router.post('/mfa/enable', requireAuth, validate(mfaCodeSchema), async (req, res, next) => {
+  try {
+    const { rows } = await query(`SELECT totp_secret, totp_enabled FROM profiles WHERE id = $1`, [req.user.id])
+    const record = rows[0]
+    if (!record?.totp_secret) return res.status(400).json({ error: 'Start MFA setup before enabling.' })
+    if (record.totp_enabled) return res.status(409).json({ error: 'MFA is already enabled.' })
+    if (!verifyTotp(record.totp_secret, req.validated.body.code)) {
+      return res.status(400).json({ error: 'That code is incorrect. Check your authenticator app and try again.' })
+    }
+    await query(`UPDATE profiles SET totp_enabled = true, updated_at = now() WHERE id = $1`, [req.user.id])
+    res.json({ ok: true, totp_enabled: true })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Disable: require a valid current code so a hijacked live session can't quietly
+// strip the account's second factor.
+router.post('/mfa/disable', requireAuth, validate(mfaCodeSchema), async (req, res, next) => {
+  try {
+    const { rows } = await query(`SELECT totp_secret, totp_enabled FROM profiles WHERE id = $1`, [req.user.id])
+    const record = rows[0]
+    if (!record?.totp_enabled) return res.status(400).json({ error: 'MFA is not enabled.' })
+    if (!verifyTotp(record.totp_secret, req.validated.body.code)) {
+      return res.status(400).json({ error: 'That code is incorrect.' })
+    }
+    await query(`UPDATE profiles SET totp_secret = NULL, totp_enabled = false, updated_at = now() WHERE id = $1`, [req.user.id])
+    res.json({ ok: true, totp_enabled: false })
+  } catch (error) {
+    next(error)
+  }
 })
 
 router.delete('/me', requireAuth, async (req, res, next) => {

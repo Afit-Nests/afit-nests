@@ -3,7 +3,7 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { requireAuth, requireRole } from '../auth.js'
 import { query, transaction } from '../db.js'
-import { validate } from '../middleware.js'
+import { validate, paymentInitLimiter } from '../middleware.js'
 import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
@@ -87,7 +87,7 @@ async function verifyPaystackTransaction(reference, payment) {
   return transaction
 }
 
-router.post('/initialize', requireAuth, requireRole('student'), validate(initializeSchema), async (req, res, next) => {
+router.post('/initialize', paymentInitLimiter, requireAuth, requireRole('student'), validate(initializeSchema), async (req, res, next) => {
   try {
     const payment = await transaction(async (client) => {
       const listingResult = await client.query(

@@ -4,6 +4,7 @@ import { backend } from '../../lib/personalBackendClient'
 import { useState, useEffect } from 'react'
 import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, Users, LogOut, Database } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
+import MfaCard from '../../components/common/MfaCard'
 
 const SIDEBAR_LINKS = [
   { to: '/admin/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', active: true },
@@ -118,6 +119,10 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div style={{ marginTop: '1.5rem', maxWidth: '520px' }}>
+          <MfaCard />
         </div>
       </div>
     </div>

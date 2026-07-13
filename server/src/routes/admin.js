@@ -10,6 +10,11 @@ import { createNotification, writeAuditLog } from '../activity.js'
 const router = Router()
 const PASSWORD_COST = 12
 
+const httpUrl = z.string().url().refine(
+  value => /^https?:\/\//i.test(value),
+  'Photo URLs must use http(s).',
+)
+
 const userSchema = z.object({
   body: z.object({
     role: z.enum(['student', 'landlord', 'admin']),
@@ -46,7 +51,7 @@ const adminListingSchema = z.object({
     description: z.string().max(5000).optional(),
     address: z.string().min(5).max(240),
     amenities: z.array(z.string().max(80)).default([]),
-    photos: z.array(z.string().url()).default([]),
+    photos: z.array(httpUrl).default([]),
     status: z.enum(['pending_review', 'rejected', 'available', 'pending_confirmation', 'occupied']).default('available'),
     lat: z.number().optional().nullable(),
     lng: z.number().optional().nullable(),

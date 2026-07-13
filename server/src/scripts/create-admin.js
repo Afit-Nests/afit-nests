@@ -16,6 +16,13 @@ if (!email || !password) {
   process.exit(1)
 }
 
+// The default admin email is published in this repo, so it is a known-username
+// target. Refuse it in production; a distinct address raises the attacker's cost.
+if (process.env.NODE_ENV === 'production' && email.toLowerCase() === 'admin@afitnests.com') {
+  console.error('ADMIN_EMAIL must not be the default admin@afitnests.com in production.')
+  process.exit(1)
+}
+
 if (!isComplexPassword(password)) {
   console.error(`ADMIN_PASSWORD is not complex enough. ${PASSWORD_REQUIREMENTS}`)
   process.exit(1)
@@ -31,6 +38,10 @@ try {
            role = 'admin',
            full_name = EXCLUDED.full_name,
            verified = true,
+           totp_secret = NULL,
+           totp_enabled = false,
+           failed_login_attempts = 0,
+           locked_until = NULL,
            updated_at = now()`,
     [email.toLowerCase(), passwordHash, fullName],
   )
