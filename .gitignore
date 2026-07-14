@@ -18,8 +18,12 @@ dist-ssr
 !.env.example
 *.local
 
-# Local-only security reference — never commit
+# Local-only security references — never commit
 SECURITY_MASTERSHEET.md
+SECURITY_TODO.md
+
+# Internal security audit docs — kept locally, not published (attacker roadmap)
+security/
 
 # Editor directories and files
 .vs/
