@@ -34,6 +34,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   address text,
   verified boolean NOT NULL DEFAULT false,
   session_version integer NOT NULL DEFAULT 0,
+  failed_login_attempts integer NOT NULL DEFAULT 0,
+  locked_until timestamptz,
+  totp_secret text,
+  totp_enabled boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT profiles_contact_required CHECK (email IS NOT NULL OR phone IS NOT NULL),
@@ -220,6 +224,7 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_landlord_phone ON profiles(phone) WHERE role = 'landlord' AND phone IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_listings_landlord_status ON listings(landlord_id, status);
 CREATE INDEX IF NOT EXISTS idx_payments_status_created ON payments(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_viewings_student ON viewings(student_id, created_at DESC);

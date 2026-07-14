@@ -9,6 +9,7 @@
     "server": "node server/src/index.js",
     "create-admin": "node server/src/scripts/create-admin.js",
     "create-access-users": "node server/src/scripts/create-access-users.js",
+    "migrate": "node server/src/scripts/run-migrations.js",
     "build": "vite build --configLoader runner",
     "lint": "eslint .",
     "preview": "vite preview"

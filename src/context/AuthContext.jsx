@@ -23,6 +23,16 @@ export function AuthProvider({ children }) {
     setProfile(state.profile)
   }
 
+  const refreshUser = async () => {
+    try {
+      const { user: sessionUser } = await api.auth.me()
+      applyUser(sessionUser)
+      return sessionUser
+    } catch {
+      return null
+    }
+  }
+
   useEffect(() => {
     let active = true
 
@@ -95,9 +105,12 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const signInAdmin = async ({ email, password }) => {
+  const signInAdmin = async ({ email, password, totpCode }) => {
     try {
-      const { user: signedInUser } = await api.auth.login({ email, password, role: 'admin' })
+      const body = { email, password, role: 'admin' }
+      if (totpCode) body.totpCode = totpCode
+      const { user: signedInUser, mfaRequired } = await api.auth.login(body)
+      if (mfaRequired) return { error: null, mfaRequired: true }
       applyUser(signedInUser)
       return { error: null }
     } catch (error) {
@@ -119,6 +132,7 @@ export function AuthProvider({ children }) {
       user,
       profile,
       loading,
+      refreshUser,
       signUpStudent,
       signUpLandlord,
       signInStudent,

@@ -9,6 +9,12 @@ dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') })
 
 const PASSWORD_COST = 12
 
+// These seed accounts use published default emails/phones, so they must never be
+// created in production where they become known-username targets.
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED_ACCESS_USERS !== 'true') {
+  throw new Error('Refusing to seed default access accounts in production. Set ALLOW_SEED_ACCESS_USERS=true only if you truly intend to.')
+}
+
 const requiredPassword = (name) => {
   const password = process.env[name]
   if (!password) throw new Error(`${name} is required.`)

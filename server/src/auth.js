@@ -1,12 +1,11 @@
 import jwt from 'jsonwebtoken'
 import { query } from './db.js'
+import { assertStrongSecret } from './secrets.js'
 
 const COOKIE_NAME = 'afit_nests_session'
 const SESSION_TTL_SECONDS = 24 * 60 * 60
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  throw new Error('JWT_SECRET must be at least 32 characters.')
-}
+assertStrongSecret('JWT_SECRET')
 
 export function signSession(profile) {
   return jwt.sign(
@@ -42,7 +41,7 @@ export async function requireAuth(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'afit-nests' })
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, created_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, totp_enabled, created_at
        FROM profiles
        WHERE id = $1`,
       [payload.sub],
@@ -66,7 +65,7 @@ export async function optionalAuth(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'afit-nests' })
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, created_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, totp_enabled, created_at
        FROM profiles
        WHERE id = $1`,
       [payload.sub],

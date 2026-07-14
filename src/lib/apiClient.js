@@ -50,6 +50,9 @@ export const api = {
     forgotPassword: (email) => apiRequest('/auth/password/forgot', { method: 'POST', body: { email } }),
     resetPassword: (token, password) => apiRequest('/auth/password/reset', { method: 'POST', body: { token, password } }),
     deleteMe: () => apiRequest('/auth/me', { method: 'DELETE' }),
+    mfaSetup: () => apiRequest('/auth/mfa/setup', { method: 'POST' }),
+    mfaEnable: (code) => apiRequest('/auth/mfa/enable', { method: 'POST', body: { code } }),
+    mfaDisable: (code) => apiRequest('/auth/mfa/disable', { method: 'POST', body: { code } }),
   },
   listings: {
     list: () => apiRequest('/listings'),

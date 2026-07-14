@@ -7,6 +7,11 @@ import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
 
+const httpUrl = z.string().url().refine(
+  value => /^https?:\/\//i.test(value),
+  'Photo URLs must use http(s).',
+)
+
 const allowedTables = ['profiles', 'listings', 'viewings', 'chats', 'messages', 'payments', 'disputes', 'notifications', 'saved_listings', 'reviews', 'audit_logs', 'refunds']
 const allowedOrderColumns = new Set(['created_at', 'updated_at', 'price', 'title', 'status'])
 
@@ -37,7 +42,7 @@ const dataListingInsertSchema = z.object({
   description: z.string().max(5000).optional(),
   address: z.string().min(5).max(240),
   amenities: z.array(z.string().max(80)).default([]),
-  photos: z.array(z.string().url()).default([]),
+  photos: z.array(httpUrl).default([]),
   status: z.enum(['pending_review', 'rejected', 'available', 'pending_confirmation', 'occupied']).default('pending_review'),
   lat: z.coerce.number().optional().nullable(),
   lng: z.coerce.number().optional().nullable(),
@@ -48,6 +53,22 @@ const dataListingUpdateSchema = dataListingInsertSchema.partial().refine(
   value => Object.keys(value).length > 0,
   'At least one listing field is required.',
 )
+
+const dataViewingInsertSchema = z.object({
+  listing_id: z.uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'A valid date is required.'),
+  time: z.string().min(1).max(40),
+  message: z.string().max(2000).optional().default(''),
+})
+
+const dataChatInsertSchema = z.object({
+  listing_id: z.uuid(),
+})
+
+const dataMessageInsertSchema = z.object({
+  chat_id: z.uuid(),
+  text: z.string().trim().min(1, 'Message text is required.').max(4000),
+})
 
 const parsePayload = (schema, payload, res) => {
   const result = schema.safeParse(payload)
@@ -387,14 +408,16 @@ async function handleInsert(table, body, req, res) {
 
   if (table === 'viewings') {
     if (!assertRole(req, res, ['student'])) return null
-    const listingResult = await query(`SELECT id, landlord_id, status FROM listings WHERE id = $1`, [payload.listing_id])
+    const viewing = parsePayload(dataViewingInsertSchema, payload, res)
+    if (!viewing) return null
+    const listingResult = await query(`SELECT id, landlord_id, status FROM listings WHERE id = $1`, [viewing.listing_id])
     const listing = listingResult.rows[0]
     if (!listing || listing.status !== 'available') return res.status(409).json({ error: 'Listing is not available.' })
     const { rows } = await query(
       `INSERT INTO viewings (student_id, landlord_id, listing_id, date, time, message, status)
        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
        RETURNING *`,
-      [req.user.id, listing.landlord_id, listing.id, payload.date, payload.time, payload.message || ''],
+      [req.user.id, listing.landlord_id, listing.id, viewing.date, viewing.time, viewing.message],
     )
     await query(
       `INSERT INTO notifications (user_id, type, title, body, link)
@@ -406,7 +429,9 @@ async function handleInsert(table, body, req, res) {
 
   if (table === 'chats') {
     if (!assertRole(req, res, ['student'])) return null
-    const listingResult = await query(`SELECT id, landlord_id FROM listings WHERE id = $1`, [payload.listing_id])
+    const chat = parsePayload(dataChatInsertSchema, payload, res)
+    if (!chat) return null
+    const listingResult = await query(`SELECT id, landlord_id FROM listings WHERE id = $1`, [chat.listing_id])
     const listing = listingResult.rows[0]
     if (!listing) return res.status(404).json({ error: 'Listing not found.' })
     const { rows } = await query(
@@ -420,15 +445,17 @@ async function handleInsert(table, body, req, res) {
   }
 
   if (table === 'messages') {
-    const chatResult = await query(`SELECT id FROM chats WHERE id = $1 AND $2::uuid IN (student_id, landlord_id)`, [payload.chat_id, req.user.id])
+    const message = parsePayload(dataMessageInsertSchema, payload, res)
+    if (!message) return null
+    const chatResult = await query(`SELECT id FROM chats WHERE id = $1 AND $2::uuid IN (student_id, landlord_id)`, [message.chat_id, req.user.id])
     if (!chatResult.rows[0]) return res.status(403).json({ error: 'Permission denied.' })
     const { rows } = await query(
       `INSERT INTO messages (chat_id, sender_id, text) VALUES ($1, $2, $3) RETURNING *`,
-      [payload.chat_id, req.user.id, String(payload.text || '').trim()],
+      [message.chat_id, req.user.id, message.text],
     )
     const target = await query(
       `SELECT student_id, landlord_id FROM chats WHERE id = $1`,
-      [payload.chat_id],
+      [message.chat_id],
     )
     const recipientId = target.rows[0]?.student_id === req.user.id ? target.rows[0]?.landlord_id : target.rows[0]?.student_id
     if (recipientId) await query(
@@ -450,20 +477,25 @@ async function handleUpdate(table, body, req, res) {
   if (table === 'profiles') {
     const targetId = id || req.user.id
     if (req.user.role !== 'admin' && targetId !== req.user.id) return res.status(403).json({ error: 'Permission denied.' })
-    const { rows } = await query(
-      `UPDATE profiles
-       SET full_name = COALESCE($2, full_name),
-           phone = COALESCE($3, phone),
-           department = COALESCE($4, department),
-           matric_number = COALESCE($5, matric_number),
-           address = COALESCE($6, address),
-           verified = CASE WHEN $7::boolean IS NULL OR $8::text <> 'admin' THEN verified ELSE $7::boolean END,
-           updated_at = now()
-       WHERE id = $1
-       RETURNING id, email, phone, role, full_name, matric_number, department, nin, address, verified, created_at, updated_at`,
-      [targetId, payload.full_name, payload.phone, payload.department, payload.matric_number, payload.address, payload.verified, req.user.role],
-    )
-    return res.json({ data: body.single ? rows[0] : rows })
+    try {
+      const { rows } = await query(
+        `UPDATE profiles
+         SET full_name = COALESCE($2, full_name),
+             phone = COALESCE($3, phone),
+             department = COALESCE($4, department),
+             matric_number = COALESCE($5, matric_number),
+             address = COALESCE($6, address),
+             verified = CASE WHEN $7::boolean IS NULL OR $8::text <> 'admin' THEN verified ELSE $7::boolean END,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING id, email, phone, role, full_name, matric_number, department, nin, address, verified, created_at, updated_at`,
+        [targetId, payload.full_name, payload.phone, payload.department, payload.matric_number, payload.address, payload.verified, req.user.role],
+      )
+      return res.json({ data: body.single ? rows[0] : rows })
+    } catch (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'That phone number is already in use.' })
+      throw error
+    }
   }
 
   if (table === 'listings') {

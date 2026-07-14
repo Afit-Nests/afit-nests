@@ -18,6 +18,9 @@ dist-ssr
 !.env.example
 *.local
 
+# Local-only security reference — never commit
+SECURITY_MASTERSHEET.md
+
 # Editor directories and files
 .vs/
 .vscode/*
