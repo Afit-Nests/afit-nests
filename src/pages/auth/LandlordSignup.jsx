@@ -8,7 +8,7 @@ export default function LandlordSignup() {
   const { signUpLandlord } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ fullName: '', phone: '', nin: '', address: '', password: '', confirmPassword: '' })
-  const [profilePic, setProfilePic] = useState(null)
+  const [, setProfilePic] = useState(null)
   const [preview, setPreview] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)

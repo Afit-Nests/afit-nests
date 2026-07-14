@@ -43,7 +43,7 @@ export default function ForgotPassword() {
               We sent a password reset link to <strong>{email}</strong>. Click the link in the email to reset your password.
             </p>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              Didn't receive it?{' '}
+              Didn&apos;t receive it?{' '}
               <button onClick={() => setSent(false)} style={{ background: 'none', border: 'none', color: 'var(--orange)', fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.82rem', padding: 0 }}>
                 Try again
               </button>
@@ -56,7 +56,7 @@ export default function ForgotPassword() {
                 Forgot Password?
               </h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                Enter your email address and we'll send you a link to reset your password.
+                Enter your email address and we&apos;ll send you a link to reset your password.
               </p>
             </div>
 

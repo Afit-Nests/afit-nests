@@ -157,7 +157,7 @@ export default function MyViewings() {
                       </div>
                       {viewing.message && (
                         <div style={{ marginTop: '0.6rem', fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          "{viewing.message}"
+                          &ldquo;{viewing.message}&rdquo;
                         </div>
                       )}
                     </div>

@@ -1,9 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { optionalAuth, requireAuth } from '../auth.js'
+import { optionalAuth } from '../auth.js'
 import { query, transaction } from '../db.js'
 import { validate } from '../middleware.js'
-import { createNotification, writeAuditLog } from '../activity.js'
+import { writeAuditLog } from '../activity.js'
 
 const router = Router()
 
@@ -224,7 +224,7 @@ async function handleSelect(table, body, req, res) {
       addFilters(clauses, params, body.filters, new Set(['id', 'role', 'verified']))
     }
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, nin, address, verified, created_at, updated_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, nin, address, avatar_url, verified, created_at, updated_at
        FROM profiles
        ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
        ORDER BY ${orderSql(body.order)}
@@ -477,6 +477,13 @@ async function handleUpdate(table, body, req, res) {
   if (table === 'profiles') {
     const targetId = id || req.user.id
     if (req.user.role !== 'admin' && targetId !== req.user.id) return res.status(403).json({ error: 'Permission denied.' })
+    // Only accept an http(s) avatar URL (uploads return an absolute API URL). Anything
+    // else leaves the stored value untouched via COALESCE, blocking javascript:/data: URIs.
+    const avatarUrl = typeof payload.avatar_url === 'string'
+      && payload.avatar_url.length <= 500
+      && /^https?:\/\//i.test(payload.avatar_url)
+      ? payload.avatar_url
+      : null
     try {
       const { rows } = await query(
         `UPDATE profiles
@@ -485,11 +492,12 @@ async function handleUpdate(table, body, req, res) {
              department = COALESCE($4, department),
              matric_number = COALESCE($5, matric_number),
              address = COALESCE($6, address),
+             avatar_url = COALESCE($9, avatar_url),
              verified = CASE WHEN $7::boolean IS NULL OR $8::text <> 'admin' THEN verified ELSE $7::boolean END,
              updated_at = now()
          WHERE id = $1
-         RETURNING id, email, phone, role, full_name, matric_number, department, nin, address, verified, created_at, updated_at`,
-        [targetId, payload.full_name, payload.phone, payload.department, payload.matric_number, payload.address, payload.verified, req.user.role],
+         RETURNING id, email, phone, role, full_name, matric_number, department, nin, address, avatar_url, verified, created_at, updated_at`,
+        [targetId, payload.full_name, payload.phone, payload.department, payload.matric_number, payload.address, payload.verified, req.user.role, avatarUrl],
       )
       return res.json({ data: body.single ? rows[0] : rows })
     } catch (error) {

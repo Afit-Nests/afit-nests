@@ -39,10 +39,9 @@ export default function LandlordProfile() {
     setUploadingAvatar(true)
     const ext = file.name.split('.').pop()
     const path = `${profile.id}/avatar.${ext}`
-    const { error: uploadError } = await backend.storage.from('avatars').upload(path, file, { upsert: true })
-    if (!uploadError) {
-      const { data } = backend.storage.from('avatars').getPublicUrl(path)
-      const url = data.publicUrl
+    const { data: uploaded, error: uploadError } = await backend.storage.from('avatars').upload(path, file, { upsert: true })
+    if (!uploadError && uploaded?.publicUrl) {
+      const url = uploaded.publicUrl
       await backend.from('profiles').update({ avatar_url: url }).eq('id', profile.id)
       setAvatarUrl(url)
     }
@@ -107,7 +106,7 @@ export default function LandlordProfile() {
               <div>
                 <label style={labelStyle}>NIN</label>
                 <input value={profile?.nin || ''} disabled style={{ ...inputStyle, opacity: 0.6, cursor: 'not-allowed' }} />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>NIN cannot be changed. Contact admin if there's an issue.</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>NIN cannot be changed. Contact admin if there&apos;s an issue.</p>
               </div>
 
               {error && (

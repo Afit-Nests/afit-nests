@@ -33,7 +33,7 @@ export default function MaintenancePage() {
           color: 'var(--blue-dark)',
           marginBottom: '1rem',
         }}>
-          We'll Be Right Back
+          We&apos;ll Be Right Back
         </h1>
 
         <p style={{

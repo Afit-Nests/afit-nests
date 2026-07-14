@@ -97,7 +97,7 @@ Create one admin account from environment variables:
 ```powershell
 $env:ADMIN_EMAIL="admin@example.com"
 $env:ADMIN_PASSWORD="Use-A-Complex-Password1!"
-$env:ADMIN_FULL_NAME="AFIT Nests Admin"
+$env:ADMIN_NAME="AFIT Nests Admin"
 npm run create-admin
 ```
 

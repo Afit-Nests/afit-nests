@@ -104,6 +104,15 @@ class ApiQuery {
   }
 }
 
+// The backend serves uploaded files from the static mount at `${API_BASE_URL}/uploads`
+// (i.e. `/api/uploads/...`). Build absolute URLs against that same base so images
+// resolve on both same-origin and split frontend/backend deployments.
+const toPublicUrl = (relativePath) => {
+  if (!relativePath) return ''
+  const cleaned = String(relativePath).replace(/^\/?(api\/)?uploads\//, '')
+  return `${API_BASE_URL}/uploads/${cleaned}`
+}
+
 const storageBucket = (bucket) => ({
   upload: async (path, file) => {
     try {
@@ -120,15 +129,16 @@ const storageBucket = (bucket) => ({
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.error || 'Upload failed.')
-      return { data: { path: payload.path, fullPath: payload.path, publicUrl: payload.publicUrl }, error: null }
+      // Return the server-assigned storage path and a working absolute URL. Callers
+      // must use these — the client-side `path` is not the stored filename (the
+      // server appends a random suffix).
+      return { data: { path: payload.path, fullPath: payload.path, publicUrl: toPublicUrl(payload.path) }, error: null }
     } catch (error) {
       return { data: null, error: normalizeError(error) }
     }
   },
   getPublicUrl: (path) => ({
-    data: {
-      publicUrl: path ? `${API_BASE_URL.replace(/\/api$/, '')}${path.startsWith('/uploads/') ? path : `/uploads/${path}`}` : '',
-    },
+    data: { publicUrl: toPublicUrl(path) },
   }),
 })
 

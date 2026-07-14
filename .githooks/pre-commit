@@ -1,0 +1,37 @@
+#!/bin/sh
+# Blocks commits that add real secrets. Enabled via `git config core.hooksPath .githooks`
+# (done automatically by `npm install` through the package.json "prepare" script).
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+for f in $staged; do
+  case "$f" in
+    .env|.env.*|*/.env|*/.env.*)
+      case "$f" in
+        *.env.example) ;;
+        *) echo "BLOCKED: '$f' looks like a real dotenv file. Only .env.example files should be committed." >&2; fail=1 ;;
+      esac
+      ;;
+  esac
+done
+
+# Scan staged additions for common secret formats.
+pattern='re_[A-Za-z0-9_]{20,}|sk_live_[A-Za-z0-9]{16,}|sk_test_[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}'
+
+hits=$(git diff --cached -U0 -- $staged | grep -E '^\+' | grep -vE '^\+\+\+' | grep -Ei "$pattern")
+if [ -n "$hits" ]; then
+  echo "BLOCKED: staged changes appear to contain a live API key or private key:" >&2
+  echo "$hits" >&2
+  fail=1
+fi
+
+if [ "$fail" -eq 1 ]; then
+  echo "" >&2
+  echo "If this is a false positive, fix the pattern or unstage the file. Never commit real secrets." >&2
+  exit 1
+fi
+
+exit 0

@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   department text,
   nin text,
   address text,
+  avatar_url text,
   verified boolean NOT NULL DEFAULT false,
   session_version integer NOT NULL DEFAULT 0,
   failed_login_attempts integer NOT NULL DEFAULT 0,

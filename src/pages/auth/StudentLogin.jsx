@@ -44,7 +44,7 @@ export default function StudentLogin() {
           <div style={{ marginBottom: '2rem' }}>
             <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.8rem', fontWeight: 900, color: 'var(--blue-dark)', marginBottom: '0.4rem' }}>Sign In</h1>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link to="/student/signup" style={{ color: 'var(--orange)', fontWeight: 600, textDecoration: 'none' }}>Create one</Link>
             </p>
           </div>

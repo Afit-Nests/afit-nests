@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || exit 0",
     "dev": "vite --configLoader runner",
     "backend": "node server/src/index.js",
     "server": "node server/src/index.js",
     "create-admin": "node server/src/scripts/create-admin.js",
     "create-access-users": "node server/src/scripts/create-access-users.js",
     "migrate": "node server/src/scripts/run-migrations.js",
-    "build": "vite build --configLoader runner",
+    "build": "vite build --configLoader runner && node scripts/inject-csp-origin.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

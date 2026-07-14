@@ -131,7 +131,7 @@ export default function ViewingRequests() {
                       </div>
                     </div>
                     {viewing.message && (
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'var(--beige)', padding: '0.7rem 1rem', borderRadius: '10px', border: '1px solid var(--beige-dark)' }}>"{viewing.message}"</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'var(--beige)', padding: '0.7rem 1rem', borderRadius: '10px', border: '1px solid var(--beige-dark)' }}>&ldquo;{viewing.message}&rdquo;</div>
                     )}
                     {viewing.status === 'confirmed' && viewing.profiles?.phone && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.8rem', background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: '12px', padding: '0.7rem 1rem', fontSize: '0.85rem', color: '#16A34A', fontWeight: 600 }}>

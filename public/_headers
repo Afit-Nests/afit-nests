@@ -1,3 +1,6 @@
+# The backend-origin placeholder in connect-src below is replaced at build time with
+# the origin of VITE_API_BASE_URL by scripts/inject-csp-origin.mjs (after `vite build`).
+# Set VITE_API_BASE_URL in the deploy environment; do not hardcode an origin here.
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff

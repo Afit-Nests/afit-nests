@@ -51,9 +51,10 @@ export default function CreateListing() {
       const ext = file.name.split('.').pop()
       const path = `${listingId}/${Date.now()}_${i}.${ext}`
       const { data, error } = await backend.storage.from('listings').upload(path, file)
-      if (!error) {
-        const { data: urlData } = backend.storage.from('listings').getPublicUrl(path)
-        urls.push(urlData.publicUrl)
+      if (!error && data?.publicUrl) {
+        // Use the URL for the server-assigned storage path, not the local `path`
+        // (the server appends a random suffix, so the local path won't resolve).
+        urls.push(data.publicUrl)
       }
     }
     return urls

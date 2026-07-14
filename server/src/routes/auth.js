@@ -80,6 +80,7 @@ const publicProfile = (row) => ({
   full_name: row.full_name,
   matric_number: row.matric_number,
   department: row.department,
+  avatar_url: row.avatar_url ?? null,
   verified: row.verified,
   totp_enabled: row.totp_enabled ?? false,
   created_at: row.created_at,

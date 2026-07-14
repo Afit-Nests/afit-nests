@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { backend } from '../../lib/personalBackendClient'
-import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, CheckCircle, Clock, BadgeCheck } from 'lucide-react'
+import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, Clock, BadgeCheck } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
@@ -98,7 +98,7 @@ export default function LandlordDashboard() {
             Welcome, {profile?.full_name?.split(' ')[0]} 👋
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>
-            Here's an overview of your listings and activity.
+            Here&apos;s an overview of your listings and activity.
           </p>
         </div>
 

@@ -41,7 +41,7 @@ export async function requireAuth(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'afit-nests' })
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, totp_enabled, created_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, avatar_url, verified, session_version, totp_enabled, created_at
        FROM profiles
        WHERE id = $1`,
       [payload.sub],
@@ -65,7 +65,7 @@ export async function optionalAuth(req, res, next) {
 
     const payload = jwt.verify(token, process.env.JWT_SECRET, { issuer: 'afit-nests' })
     const { rows } = await query(
-      `SELECT id, email, phone, role, full_name, matric_number, department, verified, session_version, totp_enabled, created_at
+      `SELECT id, email, phone, role, full_name, matric_number, department, avatar_url, verified, session_version, totp_enabled, created_at
        FROM profiles
        WHERE id = $1`,
       [payload.sub],
