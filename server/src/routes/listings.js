@@ -30,7 +30,12 @@ const listingSchema = z.object({
 })
 
 const listingPatchSchema = z.object({
+  params: z.object({ id: z.uuid() }),
   body: listingSchema.shape.body.partial().refine(value => Object.keys(value).length > 0, 'At least one listing field is required.'),
+})
+
+const listingIdSchema = z.object({
+  params: z.object({ id: z.uuid() }),
 })
 
 router.get('/', async (req, res, next) => {
@@ -49,14 +54,14 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', validate(listingIdSchema), async (req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT l.*, p.full_name AS landlord_name, p.verified AS landlord_verified
        FROM listings l
        JOIN profiles p ON p.id = l.landlord_id
        WHERE l.id = $1 AND l.status = 'available'`,
-      [req.params.id],
+      [req.validated.params.id],
     )
     if (!rows[0]) return res.status(404).json({ error: 'Listing not found.' })
     res.json({ listing: rows[0] })
@@ -136,7 +141,7 @@ router.post('/', requireAuth, requireRole('landlord', 'admin'), validate(listing
 router.patch('/:id', requireAuth, requireRole('landlord', 'admin'), validate(listingPatchSchema), async (req, res, next) => {
   try {
     const ownerClause = req.user.role === 'admin' ? '' : 'AND landlord_id = $2'
-    const ownerParams = req.user.role === 'admin' ? [req.params.id] : [req.params.id, req.user.id]
+    const ownerParams = req.user.role === 'admin' ? [req.validated.params.id] : [req.validated.params.id, req.user.id]
     const { rows: existingRows } = await query(`SELECT * FROM listings WHERE id = $1 ${ownerClause}`, ownerParams)
     if (!existingRows[0]) return res.status(404).json({ error: 'Listing not found or not yours.' })
 
@@ -151,7 +156,7 @@ router.patch('/:id', requireAuth, requireRole('landlord', 'admin'), validate(lis
        WHERE id = $1
        RETURNING *`,
       [
-        req.params.id,
+        req.validated.params.id,
         nextListing.title,
         nextListing.type,
         nextListing.price,
