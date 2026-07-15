@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: afit-nests-api
+    env: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run migrate && npm run backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: COOKIE_SECRET
+        sync: false
+      - key: TOTP_SECRET_ENCRYPTION_KEY
+        sync: false
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_AUTO_REFUNDS
+        value: "false"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: REQUIRE_ADMIN_MFA
+        value: "true"
+      - key: ALLOW_DEV_RESET_URL
+        value: "false"
+      - key: ALLOW_LOCAL_UPLOADS
+        value: "false"
+      - key: DISABLE_BREACHED_PASSWORD_CHECK
+        value: "false"

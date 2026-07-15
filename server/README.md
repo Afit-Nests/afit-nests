@@ -9,8 +9,11 @@ Copy `server/.env.example` to `server/.env` for local development.
 Required:
 
 - `DATABASE_URL`: PostgreSQL connection string.
+- `DATABASE_SSL`: set `true` when your PostgreSQL provider requires SSL verification.
+- `DB_POOL_MAX`: PostgreSQL pool size, default `10`.
 - `JWT_SECRET`: at least 32 random characters.
 - `COOKIE_SECRET`: at least 32 random characters.
+- `TOTP_SECRET_ENCRYPTION_KEY`: 32 bytes encoded as 64 hex characters or base64. Encrypts MFA secrets at rest.
 - `CLIENT_ORIGIN`: frontend origin, for example `http://localhost:5173`.
 - `PAYSTACK_PUBLIC_KEY`: Paystack public key sent to the browser through the backend payment response.
 - `PAYSTACK_SECRET_KEY`: Paystack secret key. Server-side only.
@@ -18,8 +21,15 @@ Required:
 Optional:
 
 - `PORT`: backend port, default `4000`.
+- `REQUIRE_ADMIN_MFA`: defaults to required in production. Keep `true` for deployed admin accounts.
+- `RESET_ADMIN_MFA`: set `true` only while intentionally resetting an admin MFA secret through the admin creation script.
+- `DISABLE_BREACHED_PASSWORD_CHECK`: emergency switch only. Keep `false`.
 - `ALLOW_DEV_RESET_URL`: set `true` only in local development if you need reset URLs returned in API responses.
 - `ALLOW_LOCAL_UPLOADS`: set `true` only for local or controlled temporary deployments. Production should use external object storage.
+- `ALLOW_SEED_ACCESS_USERS`: set `true` only when intentionally creating seeded access users in production.
+- `RESEND_API_KEY` and `MAIL_FROM`: enable real password-reset email delivery.
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`: enable production image uploads to Cloudinary.
+- `PAYSTACK_AUTO_REFUNDS`: set `true` only after testing refund automation with Paystack test keys.
 
 ## Setup
 
@@ -153,6 +163,7 @@ Rules:
 - Server checks MIME type and image magic bytes.
 - Max upload size is 5 MB.
 - Production local uploads are disabled unless `ALLOW_LOCAL_UPLOADS=true`.
+- Cloudinary uploads are used in production when Cloudinary environment variables are configured.
 
 For real production, use external object storage such as Cloudinary, Cloudflare R2, S3, or Supabase Storage. Keep uploads on a separate media domain where possible.
 
@@ -205,3 +216,8 @@ npm run create-access-users
 - Configure Paystack webhook URL and verify it returns 200 only for signed requests.
 - Use object storage for uploads before real users rely on listing photos.
 - Confirm `npm audit --omit=dev` returns 0 critical/high vulnerabilities.
+- Confirm `npm test` passes before deploying.
+- Add an uptime monitor for `/api/health`.
+- Enable managed PostgreSQL backups and test a restore.
+- Configure `RESEND_API_KEY` and `MAIL_FROM` before relying on password reset.
+- Configure Cloudinary or another object-storage provider before relying on listing photos in production.

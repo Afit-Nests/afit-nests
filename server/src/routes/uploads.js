@@ -4,6 +4,7 @@ import path from 'path'
 import crypto from 'crypto'
 import { Router } from 'express'
 import { requireAuth } from '../auth.js'
+import { objectStorageConfigured, uploadImageToObjectStorage } from '../cloudinaryStorage.js'
 
 const router = Router()
 const uploadRoot = path.resolve(process.cwd(), 'server', 'uploads')
@@ -50,7 +51,8 @@ router.put('/:bucket/:key', requireAuth, express.raw({ type: '*/*', limit: '5mb'
   try {
     const { bucket, key } = req.params
     if (!allowedBuckets.has(bucket)) return res.status(400).json({ error: 'Invalid upload bucket.' })
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOCAL_UPLOADS !== 'true') {
+    const useLocalStorage = process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_UPLOADS === 'true'
+    if (!useLocalStorage && !objectStorageConfigured()) {
       return res.status(503).json({ error: 'Production uploads require external object storage.' })
     }
     if (bucket === 'listings' && !['landlord', 'admin'].includes(req.user.role)) {
@@ -63,6 +65,16 @@ router.put('/:bucket/:key', requireAuth, express.raw({ type: '*/*', limit: '5mb'
     if (!hasValidImageSignature(req.body, contentType)) return res.status(415).json({ error: 'Uploaded file does not match its image type.' })
 
     const extension = extensionByType[contentType]
+    if (!useLocalStorage) {
+      const upload = await uploadImageToObjectStorage({
+        bucket,
+        key,
+        buffer: req.body,
+        contentType,
+      })
+      return res.status(201).json(upload)
+    }
+
     const target = safePath(bucket, `${key}-${crypto.randomUUID()}${extension}`)
     if (!target) return res.status(400).json({ error: 'Invalid upload path.' })
 

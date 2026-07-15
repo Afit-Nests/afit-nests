@@ -10,10 +10,15 @@
     "server": "node server/src/index.js",
     "create-admin": "node server/src/scripts/create-admin.js",
     "create-access-users": "node server/src/scripts/create-access-users.js",
+    "enroll-admin-mfa": "node server/src/scripts/enroll-admin-mfa.js",
     "migrate": "node server/src/scripts/run-migrations.js",
     "build": "vite build --configLoader runner && node scripts/inject-csp-origin.mjs",
+    "test": "node --test \"server/src/**/*.test.js\"",
     "lint": "eslint .",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20 <25"
   },
   "dependencies": {
     "bcryptjs": "3.0.3",

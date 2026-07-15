@@ -62,6 +62,7 @@ Fill `server/.env` with real backend-only secrets:
 - `DATABASE_URL`
 - `JWT_SECRET`
 - `COOKIE_SECRET`
+- `TOTP_SECRET_ENCRYPTION_KEY`
 - `CLIENT_ORIGIN`
 - `PAYSTACK_PUBLIC_KEY`
 - `PAYSTACK_SECRET_KEY`
@@ -117,17 +118,22 @@ Never commit real passwords, generated hashes, tokens, database URLs, or any `.e
 Frontend host:
 
 - Set `VITE_API_BASE_URL` to the deployed backend API URL, for example `https://api.example.com/api`.
+- On Netlify, use build command `npm ci --include=dev && npm run build` and publish directory `dist`.
 - Only public browser-safe values may use `VITE_` prefixes.
 - Do not put database URLs, Paystack secret keys, JWT secrets, or cookie secrets in frontend env vars.
 
 Backend host:
 
 - Set `NODE_ENV=production`.
+- Pin Node with `.node-version` or the `engines` field; this repo targets Node 20.
 - Set `CLIENT_ORIGIN` to the deployed frontend origin. Multiple origins can be comma-separated.
+- Set `TOTP_SECRET_ENCRYPTION_KEY` to a fresh 32 byte key, for example `openssl rand -hex 32`.
+- Keep `REQUIRE_ADMIN_MFA=true`.
 - Keep `ALLOW_DEV_RESET_URL=false`.
 - Keep `ALLOW_LOCAL_UPLOADS=false` unless this is a controlled temporary deployment.
 - Use HTTPS for the backend and frontend.
-- Put production uploads in external object storage such as Cloudinary, Cloudflare R2, S3, or Supabase Storage.
+- Put production uploads in external object storage. Cloudinary is supported with `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`.
+- Configure production password-reset email with `RESEND_API_KEY` and `MAIL_FROM`.
 - Use a managed PostgreSQL provider with backups enabled and a restricted app database user.
 
 Paystack:
@@ -140,6 +146,7 @@ https://your-backend-domain/api/payments/paystack/webhook
 ```
 
 - Webhooks must include the valid `x-paystack-signature`.
+- Optional refund automation can be enabled with `PAYSTACK_AUTO_REFUNDS=true` after testing with Paystack test keys.
 
 ## Security Status
 
@@ -162,10 +169,19 @@ Run verification:
 
 ```powershell
 npm run build
+npm test
 npm audit --omit=dev
 ```
 
 Known note: `npm run lint` may still report pre-existing style/config warnings unrelated to production build safety.
+
+## Automation and Operations
+
+- GitHub Actions runs build, lint, tests, and production dependency audit.
+- `render.yaml` defines a backend Render web service blueprint.
+- Use `/api/health` for uptime monitoring.
+- Enable database backups at the PostgreSQL provider and test restores before taking real users.
+- Add alerting for backend 5xx errors, failed Paystack webhooks, failed refund automation, and password-reset email failures.
 
 ## Documentation
 

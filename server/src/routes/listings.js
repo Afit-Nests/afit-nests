@@ -40,15 +40,43 @@ const listingIdSchema = z.object({
 
 router.get('/', async (req, res, next) => {
   try {
+    const page = Math.max(1, Number.parseInt(req.query.page || '1', 10) || 1)
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit || '24', 10) || 24))
+    const offset = (page - 1) * limit
+    const clauses = [`l.status = 'available'`]
+    const params = []
+
+    if (typeof req.query.q === 'string' && req.query.q.trim()) {
+      params.push(`%${req.query.q.trim()}%`)
+      clauses.push(`(l.title ILIKE $${params.length} OR l.address ILIKE $${params.length} OR l.description ILIKE $${params.length})`)
+    }
+    if (typeof req.query.type === 'string' && req.query.type.trim()) {
+      params.push(req.query.type.trim())
+      clauses.push(`l.type = $${params.length}`)
+    }
+    const minPrice = Number(req.query.minPrice)
+    const maxPrice = Number(req.query.maxPrice)
+    if (Number.isFinite(minPrice)) {
+      params.push(minPrice)
+      clauses.push(`l.price >= $${params.length}`)
+    }
+    if (Number.isFinite(maxPrice)) {
+      params.push(maxPrice)
+      clauses.push(`l.price <= $${params.length}`)
+    }
+
+    params.push(limit, offset)
     const { rows } = await query(
       `SELECT l.*, p.full_name AS landlord_name, p.verified AS landlord_verified
        FROM listings l
        JOIN profiles p ON p.id = l.landlord_id
-       WHERE l.status = 'available'
+       WHERE ${clauses.join(' AND ')}
        ORDER BY l.created_at DESC
-       LIMIT 100`,
+       LIMIT $${params.length - 1}
+       OFFSET $${params.length}`,
+      params,
     )
-    res.json({ listings: rows })
+    res.json({ listings: rows, page, limit })
   } catch (error) {
     next(error)
   }

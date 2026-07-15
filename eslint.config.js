@@ -61,7 +61,7 @@ export default [
     ],
     languageOptions: {
       ecmaVersion: 'latest',
-      globals: { ...globals.node, fetch: 'readonly' },
+      globals: { ...globals.node, Blob: 'readonly', FormData: 'readonly', fetch: 'readonly' },
       sourceType: 'module',
     },
     rules: sharedRules,

@@ -8,6 +8,7 @@ import { createNotification, writeAuditLog } from '../activity.js'
 
 const router = Router()
 const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify/'
+const PAYSTACK_REFUND_URL = 'https://api.paystack.co/refund'
 
 const initializeSchema = z.object({
   body: z.object({
@@ -85,6 +86,35 @@ async function verifyPaystackTransaction(reference, payment) {
   }
 
   return transaction
+}
+
+async function createPaystackRefund(payment) {
+  if (process.env.PAYSTACK_AUTO_REFUNDS !== 'true') return null
+  if (!process.env.PAYSTACK_SECRET_KEY || !payment.paystack_transaction_id) return null
+
+  const response = await fetch(PAYSTACK_REFUND_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      Accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      transaction: payment.paystack_transaction_id,
+      amount: Math.round(Number(payment.amount) * 100),
+      currency: 'NGN',
+      customer_note: 'AFIT Nests allocation was rejected.',
+      merchant_note: `AFIT Nests refund for payment ${payment.id}`,
+    }),
+  })
+
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || payload.status === false) {
+    const error = new Error('Paystack refund request failed.')
+    error.status = 502
+    throw error
+  }
+  return payload.data || payload
 }
 
 router.post('/initialize', paymentInitLimiter, requireAuth, requireRole('student'), validate(initializeSchema), async (req, res, next) => {
@@ -435,6 +465,22 @@ router.post('/:id/reject', requireAuth, requireRole('admin'), validate(idSchema)
       })
       return updated.rows[0]
     })
+
+    if (process.env.PAYSTACK_AUTO_REFUNDS === 'true') {
+      try {
+        const refund = await createPaystackRefund(payment)
+        if (refund) {
+          await query(
+            `UPDATE refunds
+             SET status = 'processing', provider_reference = $2, updated_at = now()
+             WHERE payment_id = $1`,
+            [payment.id, String(refund.id || refund.reference || '')],
+          )
+        }
+      } catch (error) {
+        console.warn(`Paystack refund automation failed for payment ${payment.id}: ${error.message}`)
+      }
+    }
 
     res.json({ payment })
   } catch (error) {

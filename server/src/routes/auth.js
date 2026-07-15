@@ -9,6 +9,7 @@ import { passwordSchema } from '../passwordPolicy.js'
 import { generateSecret, verifyTotp, otpauthURL } from '../totp.js'
 import { assertPasswordNotBreached } from '../breachedPasswords.js'
 import { adminMfaRequired, protectTotpSecret, unprotectTotpSecret } from '../mfaSecrets.js'
+import { sendPasswordResetEmail } from '../email.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -231,6 +232,11 @@ router.post('/password/forgot', loginLimiter, validate(forgotPasswordSchema), as
         [profile.id, hashResetToken(token)],
       )
       resetUrl = `${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}/reset-password?token=${token}`
+      try {
+        await sendPasswordResetEmail({ to: profile.email, resetUrl })
+      } catch (error) {
+        console.warn(`Password reset email failed: ${error.message}`)
+      }
     }
 
     res.json({
