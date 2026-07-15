@@ -92,25 +92,25 @@ npm run dev
 
 ## Admin and Access Users
 
-Create one admin account from environment variables:
+Create the first admin account from environment variables:
 
 ```powershell
-$env:ADMIN_EMAIL="admin@example.com"
-$env:ADMIN_PASSWORD="Use-A-Complex-Password1!"
-$env:ADMIN_NAME="AFIT Nests Admin"
+$env:ADMIN_EMAIL="<admin-email>"
+$env:ADMIN_PASSWORD="<strong-private-password>"
+$env:ADMIN_NAME="<admin-display-name>"
 npm run create-admin
 ```
 
-Create the standard access users from environment variables:
+Create any required access users from environment variables:
 
 ```powershell
-$env:ACCESS_ADMIN_PASSWORD="Use-A-Complex-Password1!"
-$env:ACCESS_LANDLORD_PASSWORD="Use-A-Complex-Password2!"
-$env:ACCESS_STUDENT_PASSWORD="Use-A-Complex-Password3!"
+$env:ACCESS_ADMIN_PASSWORD="<strong-private-password>"
+$env:ACCESS_LANDLORD_PASSWORD="<strong-private-password>"
+$env:ACCESS_STUDENT_PASSWORD="<strong-private-password>"
 npm run create-access-users
 ```
 
-Never commit these passwords or any `.env` file.
+Never commit real passwords, generated hashes, tokens, database URLs, or any `.env` file.
 
 ## Deployment Notes
 
@@ -143,11 +143,9 @@ https://your-backend-domain/api/payments/paystack/webhook
 
 ## Security Status
 
-The app has been hardened against the checklist items in `security/AUDIT_SUMMARY.md`:
+The app includes baseline production security controls:
 
 - No committed current `.env` files.
-- Git history was rewritten to remove old `.env` and `server/.env` commits from `master`.
-- Secrets must still be rotated if they ever existed in those old files.
 - Browser code does not query PostgreSQL directly.
 - API routes enforce auth and role checks server-side.
 - SQL uses parameterized queries.
@@ -169,19 +167,6 @@ npm audit --omit=dev
 
 Known note: `npm run lint` may still report pre-existing style/config warnings unrelated to production build safety.
 
-## After History Rewrite
-
-Because Git history was rewritten to remove old `.env` files, anyone with an older clone should re-clone the repository or reset to the current remote `master`.
-
-Also rotate any secret that was ever present in old `.env` history:
-
-- Database password or connection string.
-- JWT secret.
-- Cookie secret.
-- Paystack secret key.
-- Any other token or API key.
-
 ## Documentation
 
 - Backend details: [server/README.md](server/README.md)
-- Security audit: [security/AUDIT_SUMMARY.md](security/AUDIT_SUMMARY.md)
