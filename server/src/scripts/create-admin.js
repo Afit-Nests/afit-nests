@@ -4,12 +4,14 @@ import path from 'path'
 import bcrypt from 'bcryptjs'
 import { query, pool } from '../db.js'
 import { PASSWORD_REQUIREMENTS, isComplexPassword } from '../passwordPolicy.js'
+import { assertPasswordNotBreached } from '../breachedPasswords.js'
 
 dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') })
 
 const email = process.env.ADMIN_EMAIL
 const password = process.env.ADMIN_PASSWORD
 const fullName = process.env.ADMIN_NAME || 'AFIT Nests Admin'
+const resetMfa = process.env.RESET_ADMIN_MFA === 'true'
 
 if (!email || !password) {
   console.error('ADMIN_EMAIL and ADMIN_PASSWORD are required.')
@@ -29,6 +31,7 @@ if (!isComplexPassword(password)) {
 }
 
 try {
+  await assertPasswordNotBreached(password)
   const passwordHash = await bcrypt.hash(password, 12)
   await query(
     `INSERT INTO profiles (email, password_hash, role, full_name, verified)
@@ -38,12 +41,12 @@ try {
            role = 'admin',
            full_name = EXCLUDED.full_name,
            verified = true,
-           totp_secret = NULL,
-           totp_enabled = false,
+           totp_secret = CASE WHEN $4::boolean THEN NULL ELSE profiles.totp_secret END,
+           totp_enabled = CASE WHEN $4::boolean THEN false ELSE profiles.totp_enabled END,
            failed_login_attempts = 0,
            locked_until = NULL,
            updated_at = now()`,
-    [email.toLowerCase(), passwordHash, fullName],
+    [email.toLowerCase(), passwordHash, fullName, resetMfa],
   )
 
   console.log(`Admin account ready: ${email.toLowerCase()}`)

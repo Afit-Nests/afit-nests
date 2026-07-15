@@ -4,6 +4,7 @@ import path from 'path'
 import bcrypt from 'bcryptjs'
 import { query, pool } from '../db.js'
 import { PASSWORD_REQUIREMENTS, isComplexPassword } from '../passwordPolicy.js'
+import { assertPasswordNotBreached } from '../breachedPasswords.js'
 
 dotenv.config({ path: path.resolve(process.cwd(), 'server', '.env') })
 
@@ -55,6 +56,7 @@ const accessUsers = [
 
 try {
   for (const user of accessUsers) {
+    await assertPasswordNotBreached(user.password)
     const passwordHash = await bcrypt.hash(user.password, PASSWORD_COST)
     await query(
       `INSERT INTO profiles (email, phone, password_hash, role, full_name, matric_number, department, nin, address, verified)

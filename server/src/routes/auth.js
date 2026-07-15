@@ -7,6 +7,8 @@ import { query } from '../db.js'
 import { loginLimiter, validate } from '../middleware.js'
 import { passwordSchema } from '../passwordPolicy.js'
 import { generateSecret, verifyTotp, otpauthURL } from '../totp.js'
+import { assertPasswordNotBreached } from '../breachedPasswords.js'
+import { adminMfaRequired, protectTotpSecret, unprotectTotpSecret } from '../mfaSecrets.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -92,6 +94,7 @@ const exposeResetUrl = () => process.env.ALLOW_DEV_RESET_URL === 'true'
 router.post('/register/student', loginLimiter, validate(registerStudentSchema), async (req, res, next) => {
   try {
     const { email, password, fullName, matricNumber, department, phone } = req.validated.body
+    await assertPasswordNotBreached(password)
     const passwordHash = await bcrypt.hash(password, PASSWORD_COST)
     const { rows } = await query(
       `INSERT INTO profiles (email, phone, password_hash, role, full_name, matric_number, department, verified)
@@ -111,6 +114,7 @@ router.post('/register/student', loginLimiter, validate(registerStudentSchema), 
 router.post('/register/landlord', loginLimiter, validate(registerLandlordSchema), async (req, res, next) => {
   try {
     const { phone, password, fullName, nin, address } = req.validated.body
+    await assertPasswordNotBreached(password)
     const email = `landlord_${phone}@afitnests.com`.toLowerCase()
     const passwordHash = await bcrypt.hash(password, PASSWORD_COST)
     const { rows } = await query(
@@ -174,9 +178,13 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
     // Second factor. Only reached after a correct password, so telling the client
     // that MFA is required (or that a code was wrong) does not aid enumeration.
     // Wrong codes count toward the same lockout, making a 6-digit brute force futile.
+    if (profile.role === 'admin' && adminMfaRequired() && !profile.totp_enabled) {
+      return res.status(403).json({ error: 'Admin MFA is required before this account can sign in.' })
+    }
+
     if (profile.totp_enabled) {
       if (!totpCode) return res.json({ mfaRequired: true })
-      if (!verifyTotp(profile.totp_secret, totpCode)) {
+      if (!verifyTotp(unprotectTotpSecret(profile.totp_secret), totpCode)) {
         await registerFailure()
         return res.status(401).json({ error: 'Invalid authentication code.' })
       }
@@ -237,6 +245,7 @@ router.post('/password/forgot', loginLimiter, validate(forgotPasswordSchema), as
 router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), async (req, res, next) => {
   try {
     const { token, password } = req.validated.body
+    await assertPasswordNotBreached(password)
     const tokenHash = hashResetToken(token)
     const passwordHash = await bcrypt.hash(password, PASSWORD_COST)
 
@@ -279,7 +288,7 @@ router.post('/mfa/setup', requireAuth, async (req, res, next) => {
     const secret = generateSecret()
     await query(
       `UPDATE profiles SET totp_secret = $1, totp_enabled = false, updated_at = now() WHERE id = $2`,
-      [secret, req.user.id],
+      [protectTotpSecret(secret), req.user.id],
     )
     res.json({
       secret,
@@ -297,7 +306,7 @@ router.post('/mfa/enable', requireAuth, validate(mfaCodeSchema), async (req, res
     const record = rows[0]
     if (!record?.totp_secret) return res.status(400).json({ error: 'Start MFA setup before enabling.' })
     if (record.totp_enabled) return res.status(409).json({ error: 'MFA is already enabled.' })
-    if (!verifyTotp(record.totp_secret, req.validated.body.code)) {
+    if (!verifyTotp(unprotectTotpSecret(record.totp_secret), req.validated.body.code)) {
       return res.status(400).json({ error: 'That code is incorrect. Check your authenticator app and try again.' })
     }
     await query(`UPDATE profiles SET totp_enabled = true, updated_at = now() WHERE id = $1`, [req.user.id])
@@ -314,7 +323,7 @@ router.post('/mfa/disable', requireAuth, validate(mfaCodeSchema), async (req, re
     const { rows } = await query(`SELECT totp_secret, totp_enabled FROM profiles WHERE id = $1`, [req.user.id])
     const record = rows[0]
     if (!record?.totp_enabled) return res.status(400).json({ error: 'MFA is not enabled.' })
-    if (!verifyTotp(record.totp_secret, req.validated.body.code)) {
+    if (!verifyTotp(unprotectTotpSecret(record.totp_secret), req.validated.body.code)) {
       return res.status(400).json({ error: 'That code is incorrect.' })
     }
     await query(`UPDATE profiles SET totp_secret = NULL, totp_enabled = false, updated_at = now() WHERE id = $1`, [req.user.id])

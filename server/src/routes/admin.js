@@ -6,6 +6,7 @@ import { query, transaction } from '../db.js'
 import { validate } from '../middleware.js'
 import { passwordSchema } from '../passwordPolicy.js'
 import { createNotification, writeAuditLog } from '../activity.js'
+import { assertPasswordNotBreached } from '../breachedPasswords.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -154,6 +155,7 @@ router.get('/collections', requireAuth, requireRole('admin'), async (req, res, n
 router.post('/users', requireAuth, requireRole('admin'), validate(userSchema), async (req, res, next) => {
   try {
     const user = req.validated.body
+    await assertPasswordNotBreached(user.password)
     const passwordHash = await bcrypt.hash(user.password, PASSWORD_COST)
     const email = user.email || (user.role === 'landlord' && user.phone ? `landlord_${user.phone}@afitnests.com` : null)
     const { rows } = await query(
@@ -188,6 +190,7 @@ router.patch('/users/:id', requireAuth, requireRole('admin'), validate(userPatch
 
     const existing = existingResult.rows[0]
     const passwordChanged = Boolean(user.password)
+    if (passwordChanged) await assertPasswordNotBreached(user.password)
     const passwordHash = passwordChanged ? await bcrypt.hash(user.password, PASSWORD_COST) : existing.password_hash
     const role = user.role || existing.role
     const email = user.email || (role === 'landlord' && user.phone ? `landlord_${user.phone}@afitnests.com` : existing.email)
