@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { confirmAccommodationAllocation, getPendingAllocations, rejectTransaction } from '../../lib/paystack'
 import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, LogOut, CheckCircle, XCircle } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
@@ -45,35 +46,35 @@ export default function PendingAllocations() {
       const data = await getPendingAllocations()
       setAllocations(data)
     } catch (error) {
-      console.error('Error fetching allocations:', error)
+      toast.error('Failed to load allocations')
     } finally {
       setLoading(false)
     }
   }
 
   const handleConfirm = async (allocation) => {
-    if (!confirm(`Confirm accommodation allocation for ${allocation.profiles.full_name}?`)) return
+    const toastId = toast.loading(`Confirming allocation for ${allocation.profiles.full_name}...`)
     setActionLoading(allocation.id)
     try {
       await confirmAccommodationAllocation(allocation.listing_id, allocation.id)
-      alert('Accommodation allocation confirmed successfully!')
+      toast.success('Accommodation allocation confirmed!', { id: toastId })
       await fetchAllocations()
     } catch (error) {
-      alert('Failed to confirm allocation. Please try again.')
+      toast.error('Failed to confirm allocation. Please try again.', { id: toastId })
     } finally {
       setActionLoading(null)
     }
   }
 
   const handleReject = async (allocation) => {
-    if (!confirm(`Reject transaction for ${allocation.profiles.full_name}? This will refund the payment.`)) return
+    const toastId = toast.loading(`Rejecting transaction for ${allocation.profiles.full_name}...`)
     setActionLoading(allocation.id)
     try {
       await rejectTransaction(allocation.listing_id, allocation.id)
-      alert('Transaction rejected and refunded successfully!')
+      toast.success('Transaction rejected and refunded!', { id: toastId })
       await fetchAllocations()
     } catch (error) {
-      alert('Failed to reject transaction. Please try again.')
+      toast.error('Failed to reject transaction. Please try again.', { id: toastId })
     } finally {
       setActionLoading(null)
     }
@@ -93,13 +94,11 @@ export default function PendingAllocations() {
     <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--beige)', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
       <MobileNav links={SIDEBAR_LINKS} />
       <Sidebar signOut={signOut} />
-
       <div className="main-content" style={{ padding: '2.5rem', overflowY: 'auto' }}>
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.8rem', fontWeight: 900, color: 'var(--blue-dark)' }}>Pending Allocations</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>Review and confirm accommodation allocations.</p>
         </div>
-
         {allocations.length === 0 ? (
           <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '3rem', textAlign: 'center', border: '1px solid var(--beige-dark)' }}>
             <CheckCircle size={48} color="#16A34A" style={{ margin: '0 auto 1rem' }} />

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, Camera, X, CheckCircle, Lightbulb, ClipboardList } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
@@ -62,7 +63,7 @@ export default function CreateListing() {
 
   const handleSubmit = async () => {
     if (!form.title || !form.type || !form.price || !form.distance || !form.address) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in all required fields')
       return
     }
     setSubmitted(true)
@@ -74,13 +75,18 @@ export default function CreateListing() {
       amenities, status: 'available', photos: [],
     }).select().single()
 
-    if (error) { alert('Error: ' + error.message); setSubmitted(false); return }
+    if (error) {
+      toast.error('Error: ' + error.message)
+      setSubmitted(false)
+      return
+    }
 
     if (photos.length > 0) {
       const photoUrls = await uploadPhotos(listing.id)
       await backend.from('listings').update({ photos: photoUrls }).eq('id', listing.id)
     }
 
+    toast.success('Listing submitted successfully!')
     setUploadProgress('')
     setTimeout(() => navigate('/landlord/listings'), 1500)
   }
@@ -88,7 +94,6 @@ export default function CreateListing() {
   return (
     <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--beige)', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
       <MobileNav links={SIDEBAR_LINKS} />
-
       <div className="desktop-sidebar" style={{ background: 'var(--blue-dark)', padding: '2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'sticky', top: 0, height: '100vh' }}>
         <Link to="/" style={{ textDecoration: 'none', marginBottom: '2rem', display: 'block' }}>
           <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', fontWeight: 900, color: 'white' }}>AFIT <span style={{ color: 'var(--orange)' }}>Nests</span></span>
@@ -121,12 +126,10 @@ export default function CreateListing() {
 
         <div className="create-listing-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1.5rem', alignItems: 'start' }}>
           <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '2rem', border: '1px solid var(--beige-dark)', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-
             <div>
               <label style={labelStyle}>Listing Title</label>
               <input name="title" value={form.title} onChange={handleChange} placeholder="e.g. 2-Bedroom Self Contain" style={inputStyle} />
             </div>
-
             <div className="listing-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
                 <label style={labelStyle}>Room Type</label>
@@ -142,23 +145,18 @@ export default function CreateListing() {
                 <input name="price" type="number" value={form.price} onChange={handleChange} placeholder="e.g. 60000" style={inputStyle} />
               </div>
             </div>
-
             <div>
               <label style={labelStyle}>Distance from AFIT (minutes walk)</label>
               <input name="distance" type="number" value={form.distance} onChange={handleChange} placeholder="e.g. 5" style={inputStyle} />
             </div>
-
             <div>
               <label style={labelStyle}>Property Address</label>
               <input name="address" value={form.address} onChange={handleChange} placeholder="Full address in Barkallahu" style={inputStyle} />
             </div>
-
             <div>
               <label style={labelStyle}>Description</label>
               <textarea name="description" value={form.description} onChange={handleChange} placeholder="Describe the property..." rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
-
-            {/* Photo Upload */}
             <div>
               <label style={labelStyle}>Property Photos (up to 5)</label>
               <div style={{ marginTop: '0.4rem' }}>
@@ -186,7 +184,6 @@ export default function CreateListing() {
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>First photo will be the main display image. Max 5 photos.</p>
               </div>
             </div>
-
             <div>
               <label style={labelStyle}>Amenities</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.4rem' }}>
@@ -197,7 +194,6 @@ export default function CreateListing() {
                 ))}
               </div>
             </div>
-
             <button onClick={handleSubmit} disabled={submitted} style={{ background: submitted ? 'var(--text-muted)' : 'var(--orange)', color: 'white', padding: '0.9rem', borderRadius: '50px', fontWeight: 700, fontSize: '1rem', border: 'none', cursor: submitted ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: submitted ? 'none' : '0 4px 20px rgba(249,115,22,0.35)' }}>
               {submitted ? uploadProgress || 'Submitting...' : 'Submit Listing'}
             </button>

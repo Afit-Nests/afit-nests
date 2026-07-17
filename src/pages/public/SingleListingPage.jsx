@@ -7,6 +7,7 @@ import { startAccommodationPayment } from '../../lib/paystack'
 import { MapPin, MessageSquare, Calendar, CreditCard, BadgeCheck, Clock, Circle, ChevronLeft, ChevronRight, Home, CheckCircle, Zap, Droplets, ShowerHead, ChefHat, Car, Lock, Fence, Heart, Star } from 'lucide-react'
 import Navbar from '../../components/common/Navbar'
 import Footer from '../../components/common/Footer'
+import { toast } from 'react-hot-toast'
 
 const AMENITY_ICONS = {
   'Power': <Zap size={15} />,
@@ -69,7 +70,7 @@ export default function SingleListingPage() {
 
   const handleStartChat = async () => {
     if (!user) { navigate('/student/login'); return }
-    if (profile?.role !== 'student') { alert('Only students can start a chat'); return }
+    if (profile?.role !== 'student') { toast.error('Only students can start a chat'); return }
     const { data: existingChat } = await backend.from('chats').select('id').eq('student_id', profile.id).eq('listing_id', listing.id).single()
     if (existingChat) { navigate(`/student/chats?chat=${existingChat.id}`); return }
     const { data: newChat, error } = await backend.from('chats').insert({ student_id: profile.id, landlord_id: listing.landlord_id, listing_id: listing.id }).select().single()
@@ -78,15 +79,16 @@ export default function SingleListingPage() {
 
   const handleBookViewing = () => {
     if (!user) { navigate('/student/login'); return }
-    if (profile?.role !== 'student') { alert('Only students can book viewings'); return }
+    if (profile?.role !== 'student') { toast.error('Only students can book viewings'); return }
     setShowViewingModal(true)
   }
 
   const handleSubmitViewing = async () => {
-    if (!viewingForm.date || !viewingForm.time) { alert('Please select a date and time'); return }
+    if (!viewingForm.date || !viewingForm.time) { toast.error('Please select a date and time'); return }
     setViewingLoading(true)
     const { error } = await backend.from('viewings').insert({ student_id: profile.id, landlord_id: listing.landlord_id, listing_id: listing.id, date: viewingForm.date, time: viewingForm.time, message: viewingForm.message, status: 'pending' })
     if (!error) {
+      toast.success('Viewing request sent!')
       setViewingSuccess(true)
       setTimeout(() => { setShowViewingModal(false); setViewingSuccess(false); setViewingForm({ date: '', time: '', message: '' }) }, 2000)
     }
@@ -95,7 +97,7 @@ export default function SingleListingPage() {
 
   const handlePayment = async () => {
     if (!user) { navigate('/student/login'); return }
-    if (profile?.role !== 'student') { alert('Only students can pay for accommodation'); return }
+    if (profile?.role !== 'student') { toast.error('Only students can pay for accommodation'); return }
     setPaymentLoading(true)
     try {
       await startAccommodationPayment({
@@ -105,7 +107,7 @@ export default function SingleListingPage() {
       })
       await fetchListing()
     } catch (error) {
-      alert(error.message || 'Payment failed. Please try again.')
+      toast.error(error.message || 'Payment failed. Please try again.')
     } finally {
       setPaymentLoading(false)
     }

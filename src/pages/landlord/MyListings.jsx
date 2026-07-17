@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, BadgeCheck, Circle, Clock } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
@@ -19,9 +20,7 @@ export default function MyListings() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (profile) fetchListings()
-  }, [profile])
+  useEffect(() => { if (profile) fetchListings() }, [profile])
 
   const fetchListings = async () => {
     const { data, error } = await backend.from('listings').select('*').eq('landlord_id', profile.id).order('created_at', { ascending: false })
@@ -32,7 +31,12 @@ export default function MyListings() {
   const toggleAvailability = async (id, currentStatus) => {
     const newStatus = currentStatus === 'available' ? 'occupied' : 'available'
     const { error } = await backend.from('listings').update({ status: newStatus }).eq('id', id)
-    if (!error) setListings(listings.map(l => l.id === id ? { ...l, status: newStatus } : l))
+    if (!error) {
+      setListings(listings.map(l => l.id === id ? { ...l, status: newStatus } : l))
+      toast.success(`Listing marked as ${newStatus}`)
+    } else {
+      toast.error('Failed to update listing status')
+    }
   }
 
   const getStatusBadge = (status) => {
@@ -55,7 +59,6 @@ export default function MyListings() {
   return (
     <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--beige)', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
       <MobileNav links={SIDEBAR_LINKS} />
-
       <div className="desktop-sidebar" style={{ background: 'var(--blue-dark)', padding: '2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'sticky', top: 0, height: '100vh' }}>
         <Link to="/" style={{ textDecoration: 'none', marginBottom: '2rem', display: 'block' }}>
           <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', fontWeight: 900, color: 'white' }}>AFIT <span style={{ color: 'var(--orange)' }}>Nests</span></span>

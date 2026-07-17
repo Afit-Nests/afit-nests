@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { backend } from '../../lib/personalBackendClient'
 import { LayoutDashboard, MessageSquare, Home, Plus, Calendar, User, LogOut, CheckCircle, XCircle, Clock, Phone } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import MobileNav from '../../components/common/MobileNav'
 
 const SIDEBAR_LINKS = [
@@ -26,9 +27,7 @@ export default function ViewingRequests() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('pending')
 
-  useEffect(() => {
-    if (profile) fetchViewings()
-  }, [profile])
+  useEffect(() => { if (profile) fetchViewings() }, [profile])
 
   const fetchViewings = async () => {
     const { data, error } = await backend
@@ -42,12 +41,22 @@ export default function ViewingRequests() {
 
   const handleConfirm = async (id) => {
     const { error } = await backend.from('viewings').update({ status: 'confirmed' }).eq('id', id)
-    if (!error) setViewings(viewings.map(v => v.id === id ? { ...v, status: 'confirmed' } : v))
+    if (!error) {
+      setViewings(viewings.map(v => v.id === id ? { ...v, status: 'confirmed' } : v))
+      toast.success('Viewing confirmed! Student contact details are now visible.')
+    } else {
+      toast.error('Failed to confirm viewing')
+    }
   }
 
   const handleDecline = async (id) => {
     const { error } = await backend.from('viewings').update({ status: 'declined' }).eq('id', id)
-    if (!error) setViewings(viewings.map(v => v.id === id ? { ...v, status: 'declined' } : v))
+    if (!error) {
+      setViewings(viewings.map(v => v.id === id ? { ...v, status: 'declined' } : v))
+      toast.success('Viewing declined')
+    } else {
+      toast.error('Failed to decline viewing')
+    }
   }
 
   const filtered = viewings.filter(v => v.status === tab)
@@ -61,7 +70,6 @@ export default function ViewingRequests() {
   return (
     <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--beige)', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
       <MobileNav links={SIDEBAR_LINKS} />
-
       <div className="desktop-sidebar" style={{ background: 'var(--blue-dark)', padding: '2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'sticky', top: 0, height: '100vh' }}>
         <Link to="/" style={{ textDecoration: 'none', marginBottom: '2rem', display: 'block' }}>
           <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', fontWeight: 900, color: 'white' }}>AFIT <span style={{ color: 'var(--orange)' }}>Nests</span></span>
