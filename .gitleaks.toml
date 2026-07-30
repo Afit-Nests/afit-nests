@@ -1,0 +1,19 @@
+title = "AFIT Nests gitleaks config"
+
+# Use gitleaks' full default ruleset, then allowlist known-safe false positives.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and example placeholders — no real secrets"
+# Paths (regex, matched against file path in each commit's diff — so this also
+# covers historical occurrences, since gitleaks scans full history).
+paths = [
+  '''server/src/__tests__/.*''',   # unit tests use dummy localhost DB creds
+  '''.*\.test\.js$''',
+  '''.*\.env\.example$''',         # .env.example holds only replace_me placeholders
+]
+# Specific dummy value(s) that appear in tests.
+regexes = [
+  '''postgres://test:test@localhost''',
+]
