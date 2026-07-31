@@ -3,6 +3,7 @@
 # Set VITE_API_BASE_URL in the deploy environment; do not hardcode an origin here.
 /*
   X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
