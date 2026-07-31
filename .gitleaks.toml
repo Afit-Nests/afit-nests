@@ -12,6 +12,7 @@ paths = [
   '''server/src/__tests__/.*''',   # unit tests use dummy localhost DB creds
   '''.*\.test\.js$''',
   '''.*\.env\.example$''',         # .env.example holds only replace_me placeholders
+  '''\.github/workflows/.*''',     # CI test-only secrets (not real credentials)
 ]
 # Specific dummy value(s) that appear in tests.
 regexes = [

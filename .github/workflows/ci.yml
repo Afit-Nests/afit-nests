@@ -32,6 +32,13 @@ jobs:
 
       - name: Test
         run: npm test
+        env:
+          # db.js requires DATABASE_URL at load; tests only exercise middleware that
+          # short-circuits before any query, so an unreachable localhost URL is fine.
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+          DATABASE_SSL: 'false'
+          COOKIE_SECRET: vN8qR2mZ7tY4pL9wS6kD3hJ5xC1uB0aE8rT2yU7iO4pQ9sF6gH3jK5lM1n
+          JWT_SECRET: vN8qR2mZ7tY4pL9wS6kD3hJ5xC1uB0aE8rT2yU7iO4pQ9sF6gH3jK5lM1n
 
       - name: Audit production dependencies
         run: node scripts/audit-check.mjs
