@@ -1,7 +1,0 @@
-# AFIT Nests — security contact and disclosure policy (RFC 9116)
-# Update the Contact address to a mailbox your team actually monitors.
-Contact: mailto:security@afitnests.com
-Expires: 2027-01-01T00:00:00.000Z
-Preferred-Languages: en
-Canonical: https://afit-nests.vercel.app/.well-known/security.txt
-Policy: https://github.com/Afit-Nests/afit-nests/blob/master/SECURITY.md

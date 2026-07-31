@@ -36,3 +36,8 @@ security/
 *.njsproj
 *.sln
 *.sw?
+
+# Internal docs — not published to the public repo (kept locally)
+SECURITY.md
+server/README.md
+public/.well-known/
