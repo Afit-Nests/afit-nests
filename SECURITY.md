@@ -94,7 +94,66 @@ Last reviewed: 2026-07-31 · Framework alignment: **OWASP Top 10 (2025)** + PCI-
 
 ---
 
-## 3. Automated evidence (this is the proof)
+## 3. Broader standards coverage
+
+The OWASP Top 10 is an awareness list, not a verification standard. This section maps the same
+controls to the deeper frameworks a security review expects. This is a **self-assessment** against
+these standards, not a certified third-party audit.
+
+### 3.1 OWASP ASVS (Application Security Verification Standard) — Level 1, with Level 2 items
+
+| ASVS chapter | Representative requirements met | Control |
+|---|---|---|
+| **V2 Authentication** | 2.1 password strength, 2.1.7 breached-password check, 2.2.1 anti-automation, 2.4.1 approved hash, 2.8 MFA | bcrypt-12, HIBP k-anonymity, per-account lockout + backoff, TOTP MFA |
+| **V3 Session Management** | 3.2 token generation, 3.3 logout invalidation, 3.4 cookie attributes | HS256 JWT + `session_version` revocation; `HttpOnly`/`Secure`/`SameSite` cookies |
+| **V4 Access Control** | 4.1.1 server-side enforcement, 4.1.3 least privilege / deny by default, 4.2.1 IDOR protection | role re-read from DB, per-record ownership scoping |
+| **V5 Validation & Encoding** | 5.1 input validation, 5.3.3 output encoding, 5.3.4 parameterized queries, 5.3.6 URL validation | Zod on every route, React escaping, `pg` params + allowlists, `http(s)`-only URLs |
+| **V6/V8 Cryptography & Data Protection** | 6.2 approved algorithms, 8.1 sensitive data at rest | bcrypt, AES-256-GCM (TOTP secrets), SHA-256 reset tokens |
+| **V7 Error Handling & Logging** | 7.1.1 no sensitive data in logs, 7.4.1 generic error messages | generic prod errors, `audit_logs` |
+| **V9 Communications** | 9.1 TLS everywhere, 9.2 HSTS | TLS + HSTS preload at the edge |
+| **V10 Malicious Code** | 10.3 dependency integrity | `gitleaks`, dependency-audit gate, pinned deps |
+| **V11 Business Logic** | 11.1.1 sequential/atomic flows, 11.1.4 anti-automation | payment amount server-side, `FOR UPDATE` locks, rate limits |
+| **V12 Files & Resources** | 12.1 size limits, 12.2 content-type validation, 12.3 path traversal | 5 MB cap, magic-byte + type allowlist (no SVG), path guard + `startsWith(root)` |
+| **V13 API & Web Service** | 13.2.3 CSRF, 13.1 JSON validation | double-submit CSRF, Zod, CORS allowlist |
+| **V14 Configuration** | 14.3 no debug/default creds in prod, 14.4 security headers | boot secret guard, prod feature guards, full header set |
+
+### 3.2 OWASP API Security Top 10 (2023) — this is an API-first app
+
+| ID | Risk | Status |
+|---|---|---|
+| API1 | Broken Object Level Auth (BOLA) | ✅ ownership scoped by `req.user.id` |
+| API2 | Broken Authentication | ✅ MFA, lockout, strong sessions |
+| API3 | Broken Object Property Level Auth | ✅ Zod strips unknown keys; `verified`/`role` self-set blocked |
+| API4 | Unrestricted Resource Consumption | ✅ rate limits, 200 KB body cap, `LIMIT`≤200 |
+| API5 | Broken Function Level Auth (BFLA) | ✅ `requireRole` on privileged routes |
+| API6 | Unrestricted Access to Sensitive Flows | ✅ dedicated payment-init limiter, atomic ops |
+| API7 | SSRF | ✅ no user-controlled outbound URLs |
+| API8 | Security Misconfiguration | ✅ headers, secret guard, prod guards |
+| API9 | Improper Inventory Management | ◑ routes documented; staging is isolated from prod |
+| API10 | Unsafe Consumption of 3rd-party APIs | ✅ Paystack re-verified server-side + webhook HMAC |
+
+### 3.3 CWE mapping (key weaknesses defended)
+
+CWE-89 SQLi → parameterized + allowlists · CWE-79 XSS → React escaping + URL scheme check ·
+CWE-352 CSRF → double-submit token · CWE-639/284 IDOR/access → ownership + role checks ·
+CWE-307 brute force → lockout + rate limiting · CWE-521/798 weak/hardcoded creds → secret guard + HIBP ·
+CWE-256/311 cleartext storage → bcrypt/AES-GCM/TLS · CWE-22 path traversal → upload path guard ·
+CWE-434 unrestricted upload → magic-byte + type allowlist · CWE-1021 clickjacking → `frame-ancestors`/XFO ·
+CWE-345 insufficient verification → webhook HMAC + payment re-verify.
+
+### 3.4 PCI-DSS relevant requirements (payments in scope)
+
+- **Req 3** — no PAN stored; Paystack tokenization keeps card data off our servers.
+- **Req 4** — cardholder-adjacent data in transit protected by TLS.
+- **Req 6.2.4 / 6.3** — OWASP-aligned secure coding; dependency management via the audit gate.
+- **Req 8** — strong authentication; **MFA enforced for administrative access**.
+- **Req 10** — audit logging of security-relevant actions.
+- **Req 11.3** — penetration testing: an isolated staging target + a WSTG-style test plan
+  (`PENTEST_PACKAGE.md`) are provided for periodic testing.
+
+---
+
+## 4. Automated evidence (this is the proof)
 
 Run locally: `npm test` · `npm run lint` · `node scripts/audit-check.mjs`
 
@@ -109,7 +168,7 @@ A green CI run is a per-commit attestation that these controls are in force.
 
 ---
 
-## 4. Deployment security requirements (operational)
+## 5. Deployment security requirements (operational)
 
 These are **not** in code and must be enforced by operators:
 1. Rotate `JWT_SECRET`, `COOKIE_SECRET`, DB password, and Paystack secret key — and rotate again
@@ -122,7 +181,7 @@ These are **not** in code and must be enforced by operators:
 
 ---
 
-## 5. Reporting a vulnerability
+## 6. Reporting a vulnerability
 
 Please report security issues privately — do **not** open a public issue.
 
