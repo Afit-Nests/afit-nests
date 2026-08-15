@@ -13,7 +13,14 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: true } : false,
+  // Neon and most hosted Postgres require TLS. Honour an explicit
+  // DATABASE_SSL=true toggle, and also turn SSL on when the connection
+  // string opts in via `?sslmode=require` (Neon's default URL format).
+  // Self-hosted databases without TLS still work because their URL
+  // won't carry the sslmode flag and DATABASE_SSL stays false.
+  ssl: process.env.DATABASE_SSL === 'true' || /sslmode=require/i.test(process.env.DATABASE_URL || '')
+    ? { rejectUnauthorized: true }
+    : false,
   max: Number(process.env.DB_POOL_MAX || 10),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
