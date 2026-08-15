@@ -14,7 +14,7 @@ const SIDEBAR_LINKS = [
 ]
 
 export default function StudentProfile() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, unlinkGoogle } = useAuth()
 
   const [form, setForm] = useState({
     fullName: profile?.full_name || '',
@@ -26,6 +26,10 @@ export default function StudentProfile() {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleMessage, setGoogleMessage] = useState(null)
+  const [unlinkModal, setUnlinkModal] = useState(false)
+  const [unlinkPassword, setUnlinkPassword] = useState('')
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -33,6 +37,7 @@ export default function StudentProfile() {
   }
 
   const matricLocked = !!profile?.matric_number
+  const googleLinked = Boolean(profile?.google_sub)
 
   const handleSave = async () => {
     setSaving(true)
@@ -52,6 +57,35 @@ export default function StudentProfile() {
       setTimeout(() => setSaved(false), 3000)
     }
     setSaving(false)
+  }
+
+  // Link the current account to a Google identity. We re-use the same
+  // server-side OAuth redirect flow as login: the browser leaves the page,
+  // comes back via /api/auth/google/callback, the server matches the
+  // verified email onto the current profile, attaches google_sub, and
+  // the SPA picks up the new session on the way back. If the Google
+  // email is not the same as the profile email, the link silently fails
+  // server-side (the start endpoint does not allow creating a second
+  // account, and the email match only fires when the user already
+  // exists) and the user lands on the login page with an error.
+  const handleLinkGoogle = () => {
+    setGoogleMessage(null)
+    window.location.assign(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'}/auth/google/start`)
+  }
+
+  const handleUnlinkGoogle = async () => {
+    if (!unlinkPassword) return
+    setGoogleBusy(true)
+    setGoogleMessage(null)
+    const { error } = await unlinkGoogle(unlinkPassword)
+    setGoogleBusy(false)
+    if (error) {
+      setGoogleMessage({ kind: 'error', text: error.message })
+      return
+    }
+    setUnlinkModal(false)
+    setUnlinkPassword('')
+    setGoogleMessage({ kind: 'success', text: 'Google account unlinked.' })
   }
 
   return (
@@ -182,9 +216,70 @@ export default function StudentProfile() {
                 <Lock size={15} /> Change Password
               </button>
             </div>
+
+            <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.5rem', border: '1px solid var(--beige-dark)' }}>
+              <h4 style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--blue)', marginBottom: '0.8rem' }}>Connected Accounts</h4>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+                      <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/>
+                      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-1.9 13.5-5l-6.2-5.2C29.4 35.6 26.8 36 24 36c-5.2 0-9.6-2.9-11.3-7.1l-6.6 5.1C9.8 40 16.4 44 24 44z"/>
+                      <path fill="#1976D2" d="M43.6 20H24v8h11.3c-.9 2.4-2.5 4.5-4.6 5.8l6.2 5.2C40.7 35.5 44 30.2 44 24c0-1.3-.1-2.7-.4-4z"/>
+                    </svg>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text)' }}>Google</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {googleLinked ? 'Linked' : 'Not linked'}
+                      </div>
+                    </div>
+                  </div>
+                  {googleLinked ? (
+                    <button onClick={() => setUnlinkModal(true)} disabled={googleBusy} style={{ padding: '0.45rem 0.9rem', borderRadius: '50px', border: '1px solid var(--beige-dark)', background: 'white', color: 'var(--text)', fontWeight: 600, fontSize: '0.78rem', cursor: googleBusy ? 'not-allowed' : 'pointer' }}>
+                      Unlink
+                    </button>
+                  ) : (
+                    <button onClick={handleLinkGoogle} disabled={googleBusy} style={{ padding: '0.45rem 0.9rem', borderRadius: '50px', border: 'none', background: 'var(--orange)', color: 'white', fontWeight: 600, fontSize: '0.78rem', cursor: googleBusy ? 'not-allowed' : 'pointer' }}>
+                      {googleBusy ? 'Linking…' : 'Link'}
+                    </button>
+                  )}
+                </div>
+                {googleMessage && (
+                  <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: googleMessage.kind === 'error' ? '#DC2626' : '#16A34A', fontWeight: 600 }}>
+                    {googleMessage.text}
+                  </div>
+                )}
+            </div>
           </div>
         </div>
       </div>
+
+      {unlinkModal && (
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(15,31,61,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ background: 'var(--card)', borderRadius: '16px', padding: '1.5rem', width: '360px', maxWidth: '90vw', border: '1px solid var(--beige-dark)' }}>
+            <h3 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.2rem', fontWeight: 900, color: 'var(--blue-dark)', marginBottom: '0.4rem' }}>Unlink Google</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Enter your password to confirm. You can re-link Google at any time.
+            </p>
+            <input
+              type="password"
+              value={unlinkPassword}
+              onChange={(e) => setUnlinkPassword(e.target.value)}
+              placeholder="Your password"
+              autoFocus
+              style={{ width: '100%', padding: '0.7rem 1rem', borderRadius: '12px', border: '1px solid var(--beige-dark)', background: 'var(--beige)', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', marginBottom: '1rem', boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button onClick={() => { setUnlinkModal(false); setUnlinkPassword('') }} style={{ padding: '0.55rem 1rem', borderRadius: '50px', border: '1px solid var(--beige-dark)', background: 'white', color: 'var(--text)', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleUnlinkGoogle} disabled={googleBusy || !unlinkPassword} style={{ padding: '0.55rem 1rem', borderRadius: '50px', border: 'none', background: '#DC2626', color: 'white', fontWeight: 600, fontSize: '0.85rem', cursor: googleBusy || !unlinkPassword ? 'not-allowed' : 'pointer', opacity: googleBusy || !unlinkPassword ? 0.6 : 1 }}>
+                {googleBusy ? 'Unlinking…' : 'Unlink Google'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,15 +1,32 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react'
+
+const GOOGLE_ERROR_MESSAGES = {
+  google_not_configured: 'Google sign-in is not configured on the server. Ask an admin to set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.',
+  missing_code: 'Google did not return an authorisation code. Please try again.',
+  missing_state: 'The OAuth state was missing. Please try again.',
+  invalid_or_expired_state: 'Your Google sign-in session expired. Please try again.',
+  state_mismatch: 'The OAuth state did not match. Please try again.',
+  verification_failed: 'Google could not verify your identity. Please try again.',
+  access_denied: 'You cancelled the Google sign-in.',
+}
+const DEFAULT_GOOGLE_ERROR = 'Google sign-in failed. Please try again.'
 
 export default function StudentLogin() {
   const { signInStudent, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(() => {
+    const code = searchParams.get('google')
+    if (code !== 'error') return null
+    const reason = searchParams.get('error') || ''
+    return GOOGLE_ERROR_MESSAGES[reason] || DEFAULT_GOOGLE_ERROR
+  })
 
   const handleChange = (e) => { setForm({ ...form, [e.target.name]: e.target.value }); setError(null) }
 
@@ -19,6 +36,18 @@ export default function StudentLogin() {
     const { error } = await signInStudent({ email: form.email, password: form.password })
     if (error) { setError('Invalid email or password'); setLoading(false); return }
     navigate('/student/dashboard')
+  }
+
+  const handleGoogle = () => {
+    setError(null)
+    // Server-side redirect flow: the browser leaves the page. No loading
+    // state is needed because the next render happens after the round
+    // trip to Google and back to /student/dashboard (or back here with a
+    // ?google=error=… param).
+    signInWithGoogle()
+    // Strip any stale error query param so a successful next attempt does
+    // not inherit the old message during in-flight navigation.
+    if (searchParams.toString()) setSearchParams({}, { replace: true })
   }
 
   return (
@@ -56,7 +85,7 @@ export default function StudentLogin() {
           )}
 
           {/* Google */}
-          <button onClick={async () => { const { error } = await signInWithGoogle(); if (error) setError(error.message) }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'white', color: '#0F1F3D', padding: '0.85rem', borderRadius: '50px', fontWeight: 600, fontSize: '0.95rem', border: '1.5px solid var(--beige-dark)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '0.5rem' }}>
+          <button onClick={handleGoogle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', background: 'white', color: '#0F1F3D', padding: '0.85rem', borderRadius: '50px', fontWeight: 600, fontSize: '0.95rem', border: '1.5px solid var(--beige-dark)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '0.5rem' }}>
             <svg width="20" height="20" viewBox="0 0 48 48">
               <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.1 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.1-4z"/>
               <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.1 6.5 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>

@@ -53,6 +53,7 @@ export const api = {
     mfaSetup: () => apiRequest('/auth/mfa/setup', { method: 'POST' }),
     mfaEnable: (code) => apiRequest('/auth/mfa/enable', { method: 'POST', body: { code } }),
     mfaDisable: (code) => apiRequest('/auth/mfa/disable', { method: 'POST', body: { code } }),
+    unlinkGoogle: (password) => apiRequest('/auth/google', { method: 'DELETE', body: { password } }),
   },
   listings: {
     list: () => apiRequest('/listings'),

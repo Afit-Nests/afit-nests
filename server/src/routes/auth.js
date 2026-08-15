@@ -4,12 +4,18 @@ import crypto from 'crypto'
 import { z } from 'zod'
 import { clearSessionCookie, requireAuth, setSessionCookie, signSession } from '../auth.js'
 import { query } from '../db.js'
-import { loginLimiter, validate } from '../middleware.js'
+import { googleLimiter, loginLimiter, validate } from '../middleware.js'
 import { passwordSchema } from '../passwordPolicy.js'
 import { generateSecret, verifyTotp, otpauthURL } from '../totp.js'
 import { assertPasswordNotBreached } from '../breachedPasswords.js'
 import { adminMfaRequired, protectTotpSecret, unprotectTotpSecret } from '../mfaSecrets.js'
 import { sendPasswordResetEmail } from '../email.js'
+import {
+  STATE_COOKIE_NAME, STATE_COOKIE_TTL_MS, assertGoogleConfig, buildAuthorizeUrl,
+  buildClientRedirect, buildStateCookie, deriveCodeChallenge, exchangeCodeForTokens,
+  generateCodeVerifier, generateState, isGoogleEnabled, readStateCookie,
+  verifyGoogleIdToken,
+} from '../google.js'
 
 const router = Router()
 const PASSWORD_COST = 12
@@ -75,6 +81,16 @@ const resetPasswordSchema = z.object({
   }),
 })
 
+// Unlinking Google is a permanent account-control change. Require a recent
+// password to make sure a hijacked live session cannot strip a user's only
+// second factor (a Google-linked account without a password would lose all
+// access if the OAuth link were dropped).
+const unlinkGoogleSchema = z.object({
+  body: z.object({
+    password: z.string().min(1).max(128),
+  }),
+})
+
 const publicProfile = (row) => ({
   id: row.id,
   email: row.email,
@@ -86,6 +102,8 @@ const publicProfile = (row) => ({
   avatar_url: row.avatar_url ?? null,
   verified: row.verified,
   totp_enabled: row.totp_enabled ?? false,
+  google_sub: row.google_sub ?? null,
+  google_linked_at: row.google_linked_at ?? null,
   created_at: row.created_at,
 })
 
@@ -283,6 +301,234 @@ router.post('/password/reset', loginLimiter, validate(resetPasswordSchema), asyn
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user })
 })
+
+// --- Google sign-in (OAuth 2.0 authorization code flow with PKCE) ---
+//
+// This is a server-side redirect flow. There is no client-side Google SDK
+// and no id_token in the browser. The browser is sent to Google with a
+// one-time PKCE challenge and a one-time state; on the callback we exchange
+// the code for tokens server-to-server, verify the id_token against
+// Google's JWKS, and run the same find-or-create-and-link logic the
+// id_token path used. The session cookie is the same one /auth/login sets.
+
+// Kick the browser into the Google authorize URL. We always mint a fresh
+// verifier + state, even if the user reloads, so a stale cookie from a
+// previous attempt cannot be replayed.
+router.get('/google/start', googleLimiter, (req, res, next) => {
+  try {
+    if (!isGoogleEnabled()) {
+      return res.redirect(buildClientRedirect({ clientOrigin: clientOriginFor(req), error: 'google_not_configured' }))
+    }
+    const { clientId } = assertGoogleConfig()
+    const verifier = generateCodeVerifier()
+    const state = generateState()
+    const challenge = deriveCodeChallenge(verifier)
+    const redirectUri = googleRedirectUri(req)
+    const url = buildAuthorizeUrl({ clientId, redirectUri, state, codeChallenge: challenge })
+
+    // Stash verifier+state in a short-lived signed cookie. The cookie is
+    // httpOnly + sameSite=lax (not strict: we need it to come back on the
+    // cross-origin callback GET) and Secure in production. It is purged
+    // by /auth/google/callback whether the exchange succeeds or fails, so
+    // there is no way for a stale verifier to be reused.
+    res.cookie(STATE_COOKIE_NAME, buildStateCookie(verifier, state), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: STATE_COOKIE_TTL_MS,
+    })
+    res.redirect(302, url)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Google redirects the user back here with `?code=…&state=…`. We verify
+// state against the signed cookie (CSRF mitigation), exchange the code
+// for tokens server-to-server using the stashed verifier, verify the
+// id_token against Google's JWKS, then run the find-or-create flow.
+router.get('/google/callback', googleLimiter, async (req, res, next) => {
+  const fail = (error) => {
+    // Always clear the state cookie, even on failure, so a stale verifier
+    // cannot be retried.
+    res.clearCookie(STATE_COOKIE_NAME, { path: '/' })
+    res.redirect(buildClientRedirect({ clientOrigin: clientOriginFor(req), error }))
+  }
+  try {
+    if (!isGoogleEnabled()) return fail('google_not_configured')
+
+    const { code, state, error: oauthError } = req.query
+    if (oauthError) return fail(String(oauthError))
+    if (typeof code !== 'string' || !code) return fail('missing_code')
+    if (typeof state !== 'string' || !state) return fail('missing_state')
+
+    const cookieValue = req.cookies?.[STATE_COOKIE_NAME]
+    const stored = readStateCookie(cookieValue)
+    if (!stored) return fail('invalid_or_expired_state')
+    if (stored.state !== state) return fail('state_mismatch')
+
+    // From this point we MUST clear the cookie before any async work, so a
+    // network error or crash does not leave a replayable verifier around.
+    res.clearCookie(STATE_COOKIE_NAME, { path: '/' })
+
+    const { clientId, clientSecret } = assertGoogleConfig()
+    const redirectUri = googleRedirectUri(req)
+    const tokenResponse = await exchangeCodeForTokens({
+      code, codeVerifier: stored.verifier, clientId, clientSecret, redirectUri,
+    })
+    const googleProfile = await verifyGoogleIdToken(tokenResponse.id_token, clientId)
+
+    const result = await findOrCreateGoogleProfile(googleProfile)
+    const token = signSession(result.profile)
+    setSessionCookie(res, token)
+
+    const target = buildClientRedirect({
+      clientOrigin: clientOriginFor(req),
+      role: result.profile.role,
+      needsProfileCompletion: result.needsProfileCompletion,
+    })
+    res.redirect(302, target)
+  } catch (error) {
+    // Same code path as the early `fail` helper — clear the cookie and
+    // bounce the user back to the SPA with a generic error code. Never
+    // surface internal error details in the redirect.
+    if (error.message && /Google|JWKS|token|JWS|signature|claim|issuer|audience/i.test(error.message)) {
+      return fail('verification_failed')
+    }
+    next(error)
+  }
+})
+
+// CSRF protection skips the OAuth callback GET (it is a redirect endpoint,
+// not a state-changing POST). Anything else under /auth/google still
+// requires the CSRF token because it is a state-changing request.
+function skipCsrf(req) {
+  return req.method === 'GET' && (req.path === '/google/start' || req.path === '/google/callback')
+}
+
+// Build the redirect_uri we register in Google Cloud Console. The scheme
+// + host come from the request so the same code works behind a reverse
+// proxy on a different port (e.g. localhost:4000) and in production
+// (https://api.example.com). The path is fixed; Google requires exact
+// matching, so a trailing slash mismatch is a hard error.
+function googleRedirectUri(req) {
+  // Trust X-Forwarded-* because we set `app.set('trust proxy', 1)`.
+  const proto = req.headers['x-forwarded-proto'] || req.protocol
+  const host = req.headers['x-forwarded-host'] || req.get('host')
+  return `${proto}://${host}/api/auth/google/callback`
+}
+
+function clientOriginFor(req) {
+  // Prefer the explicitly configured client origin, fall back to the
+  // request host so the callback still works if the operator forgot to
+  // set CLIENT_ORIGIN. CORS will still enforce the allowlist on the next
+  // call, so this is only used for the redirect URL.
+  return (process.env.CLIENT_ORIGIN || '').split(',')[0].trim() || `${req.headers['x-forwarded-proto'] || req.protocol}://${req.headers['x-forwarded-host'] || req.get('host')}`
+}
+
+// The shared find-or-create-and-link logic used by the callback. Returns
+// the profile and a needsProfileCompletion flag (true when a brand-new
+// student account was minted from Google and the user should be prompted
+// to fill in their profile on first login).
+async function findOrCreateGoogleProfile(googleProfile) {
+  // 1) Stable sub first. Two profiles cannot share a sub (partial unique
+  // index), so this is unambiguous.
+  const { rows: bySub } = await query(
+    `SELECT id, email, phone, role, full_name, matric_number, department, avatar_url, verified,
+            session_version, totp_enabled, google_sub, created_at
+     FROM profiles WHERE google_sub = $1`,
+    [googleProfile.sub],
+  )
+  if (bySub[0]) return { profile: bySub[0], needsProfileCompletion: false }
+
+  // 2) Match by verified email, attach Google to the existing account.
+  const { rows: byEmail } = await query(
+    `SELECT id, email, phone, role, full_name, matric_number, department, avatar_url, verified,
+            session_version, totp_enabled, google_sub, created_at
+     FROM profiles WHERE email = $1`,
+    [googleProfile.email],
+  )
+  if (byEmail[0]) {
+    const profile = byEmail[0]
+    if (profile.role !== 'student' && profile.role !== 'landlord') {
+      // Same policy as the old id_token path: admins are operator-created
+      // and gated on TOTP, never linkable from OAuth.
+      throw new Error('This email is associated with an account that does not support Google sign-in.')
+    }
+    const { rows: updated } = await query(
+      `UPDATE profiles SET google_sub = $1, google_linked_at = now(), updated_at = now()
+       WHERE id = $2
+       RETURNING id, email, phone, role, full_name, matric_number, department, avatar_url, verified,
+                 session_version, totp_enabled, google_sub, created_at`,
+      [googleProfile.sub, profile.id],
+    )
+    return { profile: updated[0], needsProfileCompletion: false }
+  }
+
+  // 3) New account. Same gating: only when ALLOW_GOOGLE_SIGNUP is on.
+  if (process.env.ALLOW_GOOGLE_SIGNUP !== 'true') {
+    throw new Error('No account is linked to this Google profile. Please sign up with email first.')
+  }
+  const fullName = (googleProfile.name || googleProfile.email.split('@')[0] || 'Student').slice(0, 120)
+  const provisionalMatric = `GOOGLE-${googleProfile.sub.slice(0, 8).toUpperCase()}`
+  const provisionalDepartment = 'Unspecified'
+  const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), PASSWORD_COST)
+
+  try {
+    const { rows } = await query(
+      `INSERT INTO profiles (
+         email, password_hash, role, full_name, matric_number, department,
+         verified, google_sub, google_linked_at
+       ) VALUES ($1, $2, 'student', $3, $4, $5, true, $6, now())
+       RETURNING id, email, phone, role, full_name, matric_number, department, avatar_url, verified,
+                 session_version, totp_enabled, google_sub, created_at`,
+      [googleProfile.email, passwordHash, fullName, provisionalMatric, provisionalDepartment, googleProfile.sub],
+    )
+    return { profile: rows[0], needsProfileCompletion: true }
+  } catch (error) {
+    if (error.code === '23505') {
+      const { rows: raced } = await query(
+        `SELECT id, email, phone, role, full_name, matric_number, department, avatar_url, verified,
+                session_version, totp_enabled, google_sub, created_at
+         FROM profiles WHERE google_sub = $1 OR email = $2`,
+        [googleProfile.sub, googleProfile.email],
+      )
+      if (raced[0]) return { profile: raced[0], needsProfileCompletion: false }
+    }
+    throw error
+  }
+}
+
+// Unlink Google from the current account. Requires a correct password so a
+// stolen session cannot turn a Google-only account into a passwordless one
+// and then evict the OAuth link.
+router.delete('/google', requireAuth, validate(unlinkGoogleSchema), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT password_hash, google_sub, email FROM profiles WHERE id = $1`,
+      [req.user.id],
+    )
+    const record = rows[0]
+    if (!record?.google_sub) {
+      return res.status(400).json({ error: 'Google sign-in is not linked to this account.' })
+    }
+    const ok = await bcrypt.compare(req.validated.body.password, record.password_hash)
+    if (!ok) return res.status(401).json({ error: 'Password is incorrect.' })
+
+    await query(
+      `UPDATE profiles SET google_sub = NULL, google_linked_at = NULL, updated_at = now() WHERE id = $1`,
+      [req.user.id],
+    )
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Exported for tests so the OAuth callback's CSRF exemption is applied
+// identically in app.js (where the middleware is mounted).
+export { skipCsrf as _skipGoogleCsrf }
 
 // --- Multi-factor authentication (TOTP) ---
 

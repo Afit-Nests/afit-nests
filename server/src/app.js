@@ -32,14 +32,22 @@ export function createApp() {
 
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    // HSTS: force HTTPS in production. We are explicit about the policy
+    // rather than relying on Helmet's default so the `preload` flag is
+    // off — preload is a sticky commitment to the browser-shipped HSTS
+    // list and is not the operator's first-week decision to make.
+    strictTransportSecurity: process.env.NODE_ENV === 'production' ? {
+      maxAge: 31536000,
+      includeSubDomains: true,
+    } : false,
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         baseUri: ["'self'"],
         objectSrc: ["'none'"],
-        scriptSrc: ["'self'", 'https://js.paystack.co'],
-        frameSrc: ["'self'", 'https://checkout.paystack.com', 'https://*.paystack.co'],
-        connectSrc: ["'self'", 'https://api.paystack.co'],
+        scriptSrc: ["'self'", 'https://js.paystack.co', 'https://accounts.google.com'],
+        frameSrc: ["'self'", 'https://checkout.paystack.com', 'https://*.paystack.co', 'https://accounts.google.com'],
+        connectSrc: ["'self'", 'https://api.paystack.co', 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],

@@ -28,6 +28,18 @@ export const paymentInitLimiter = rateLimit({
   message: { error: 'Too many payment attempts. Please try again later.' },
 })
 
+// Google sign-in is gated behind a verified id_token, so it is much harder to
+// brute-force than password login. We still rate-limit per-IP to keep the
+// tokeninfo round-trips (and any sign-up attempts) from being weaponised for
+// cost amplification or email enumeration via the auto-link path.
+export const googleLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many Google sign-in attempts. Please try again later.' },
+})
+
 const isUnsafeMethod = method => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
 
 const csrfCookieOptions = {

@@ -18,6 +18,7 @@ const DEFAULT_MIGRATIONS = [
   '004_login_throttle.sql',
   '005_admin_mfa.sql',
   '006_profile_avatar.sql',
+  '007_google_oauth.sql',
 ]
 
 const files = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_MIGRATIONS
