@@ -13,7 +13,12 @@ import fs from 'fs/promises'
 import path from 'path'
 import { pool } from '../db.js'
 
+// Default set is *every* SQL file in numeric order. On a brand-new
+// database this brings the schema from empty to fully migrated. On a
+// populated database the IF-NOT-EXISTS guards mean nothing changes.
 const DEFAULT_MIGRATIONS = [
+  '001_schema.sql',
+  '002_product_features.sql',
   '003_security_hardening.sql',
   '004_login_throttle.sql',
   '005_admin_mfa.sql',
