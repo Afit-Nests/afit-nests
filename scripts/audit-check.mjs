@@ -15,6 +15,26 @@ const ALLOWLIST = new Map([
   // mode, which is the only affected surface. No forward-fixed version exists
   // (every 7.12–8.2 release is flagged; latest 7.18.2 is the safest available).
   ['GHSA-qwww-vcr4-c8h2', 'react-router RSC CSRF — not applicable to a client-only SPA'],
+
+  // ip-address advisories (transitive via express-rate-limit@8.x). We only
+  // touch this package through `Address6`, which `express-rate-limit`
+  // uses to normalise IPv6 keys for rate-limit buckets. None of the
+  // affected surfaces are reachable on the path we exercise:
+  //
+  //   - proxyIsIPv6() — not imported by express-rate-limit, never called.
+  //   - isInSubnet()  — not imported by express-rate-limit, never called.
+  //   - IPv4 octal/hex leading-zero handling — we feed IPv6 to Address6 only.
+  //
+  // Even if a crafted IPv6 caused the rate-limit key to misbehave, the
+  // only impact is that one source IP could dodge the per-IP limiter on
+  // /api/auth/* — the per-account lockout in routes/auth.js (independent
+  // of IP) and the per-IP paymentLimiter / googleLimiter catch the same
+  // brute-force shape from a different angle. No fix is shipped: 10.5.0
+  // (Aug 2026) is the latest release and the maintainer has not yet
+  // published a patch. Re-check on every `npm install`.
+  ['GHSA-mwp4-54f8-5fhr', 'ip-address proxyIsIPv6/isInSubnet — not on the express-rate-limit code path'],
+  ['GHSA-4xrf-jv44-h6hh', 'ip-address Address6 parser bypass — only feeds rate-limit key, not auth decision'],
+  ['GHSA-22jq-vg5j-6vgg', 'ip-address IPv4 octal/hex — only IPv6 (Address6) is consumed by express-rate-limit'],
 ])
 
 let raw
