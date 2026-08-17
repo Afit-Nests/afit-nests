@@ -1,6 +1,9 @@
 import { api, apiRequest } from './apiClient'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
+// Same production-aware fallback as apiClient.js — /api in production
+// builds (relies on the SPA host proxying), http://localhost:4000/api
+// in dev so the default `npm run dev` workflow works.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api')
 
 const normalizeError = (error) => ({
   message: error?.message || 'Request failed.',

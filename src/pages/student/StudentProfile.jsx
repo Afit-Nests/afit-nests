@@ -70,7 +70,8 @@ export default function StudentProfile() {
   // exists) and the user lands on the login page with an error.
   const handleLinkGoogle = () => {
     setGoogleMessage(null)
-    window.location.assign(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'}/auth/google/start`)
+    const base = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api')
+    window.location.assign(`${base}/auth/google/start`)
   }
 
   const handleUnlinkGoogle = async () => {

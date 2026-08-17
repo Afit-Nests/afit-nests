@@ -12,8 +12,14 @@ const asAuthError = (error, fallback = 'Request failed. Please try again.') => (
   error: { message: error?.message || fallback },
 })
 
+// Mirrors the production-aware fallback in apiClient.js so the OAuth
+// redirect goes to the same place every other API call goes. In dev,
+// the fallback is http://localhost:4000/api. In a production build
+// without VITE_API_BASE_URL set, the fallback is /api (same-origin;
+// relies on the SPA host proxying /api/* to the backend).
 function apiBaseUrl() {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
+  const fallback = import.meta.env.PROD ? '/api' : 'http://localhost:4000/api'
+  return import.meta.env.VITE_API_BASE_URL || fallback
 }
 
 export function AuthProvider({ children }) {

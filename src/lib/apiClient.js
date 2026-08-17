@@ -1,4 +1,21 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api'
+// Resolve the API base URL at build time.
+//
+// Order of preference:
+//   1. VITE_API_BASE_URL (set this in production — either an absolute URL
+//      like https://api.example.com/api for direct calls, OR a same-origin
+//      path like /api when the SPA host proxies /api/* to the API server.
+//   2. Production builds without VITE_API_BASE_URL fall back to a
+//      same-origin /api path. This keeps the SPA functional even if the
+//      env var was forgotten, instead of silently pointing at the dev
+//      backend on localhost.
+//   3. Dev builds without VITE_API_BASE_URL fall back to the local
+//      backend at http://localhost:4000/api so the default `npm run dev`
+//      workflow works without extra setup.
+//
+// The "is this a production build?" check uses Vite's import.meta.env.PROD,
+// which is true only for `vite build` output. `vite dev` leaves it false.
+const DEFAULT_API_BASE_URL = import.meta.env.PROD ? '/api' : 'http://localhost:4000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
 const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 const getCookie = (name) => {
