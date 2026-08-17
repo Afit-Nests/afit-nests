@@ -407,12 +407,27 @@ function skipCsrf(req) {
   return req.method === 'GET' && (req.path === '/google/start' || req.path === '/google/callback')
 }
 
-// Build the redirect_uri we register in Google Cloud Console. The scheme
-// + host come from the request so the same code works behind a reverse
-// proxy on a different port (e.g. localhost:4000) and in production
-// (https://api.example.com). The path is fixed; Google requires exact
-// matching, so a trailing slash mismatch is a hard error.
+// Build the redirect_uri we register in Google Cloud Console.
+//
+// In a same-origin deployment (SPA and backend on the same domain) we build
+// this from the request host so it matches whatever origin the user hit.
+//
+// In a split deployment (SPA on Vercel, backend on Render) we MUST build it
+// from CLIENT_ORIGIN so the callback goes through the frontend (Vercel), not
+// directly to the backend. If the callback hits the backend directly, the
+// session cookie gets set on the backend's domain and the SPA (on the
+// frontend domain) never receives it — resulting in a silent 401 and a
+// blank dashboard screen. When the callback goes through the frontend,
+// Vercel's rewrite proxies it to the backend and the session cookie is set
+// on the frontend domain, so it's accessible to the SPA on the next call.
 function googleRedirectUri(req) {
+  const clientOrigin = process.env.CLIENT_ORIGIN
+  if (clientOrigin && clientOrigin !== 'http://localhost:5173') {
+    // Production split-deployment: callback must go through the frontend
+    // so cookies land on the SPA's domain, not the backend's.
+    return `${clientOrigin}/api/auth/google/callback`
+  }
+  // Dev / same-origin fallback: build from the request host.
   // Trust X-Forwarded-* because we set `app.set('trust proxy', 1)`.
   const proto = req.headers['x-forwarded-proto'] || req.protocol
   const host = req.headers['x-forwarded-host'] || req.get('host')

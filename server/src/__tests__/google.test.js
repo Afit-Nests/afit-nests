@@ -374,3 +374,24 @@ test('GET /auth/google/callback rejects an id_token whose email_verified is fals
     }, { GOOGLE_CLIENT_ID: validClientId, GOOGLE_CLIENT_SECRET: validClientSecret })
   } finally { restoreFetch() }
 })
+
+test('GET /auth/google/start uses CLIENT_ORIGIN for redirect_uri in production split-deployment', async () => {
+  // In production, CLIENT_ORIGIN points to the SPA (Vercel) and the backend
+  // is on a different host (Render). The redirect_uri must use the frontend
+  // origin so the callback goes through Vercel and the session cookie lands
+  // on the SPA domain, not the backend domain.
+  await withTestApp(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/auth/google/start`, { redirect: 'manual' })
+    assert.ok(REDIRECT_STATUS.includes(response.status))
+    const location = response.headers.get('location') || ''
+    const url = new URL(location)
+    assert.equal(
+      url.searchParams.get('redirect_uri'),
+      'https://afit-nests.vercel.app/api/auth/google/callback',
+    )
+  }, {
+    GOOGLE_CLIENT_ID: validClientId,
+    GOOGLE_CLIENT_SECRET: validClientSecret,
+    CLIENT_ORIGIN: 'https://afit-nests.vercel.app',
+  })
+})
