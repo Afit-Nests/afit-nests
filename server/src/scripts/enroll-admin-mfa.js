@@ -3,11 +3,6 @@
 // in first — a chicken-and-egg for the very first admin. This seeds a TOTP secret
 // directly, prints it so you can add it to your authenticator app, and enables MFA.
 //
-// Usage (point DATABASE_URL at the target DB, e.g. Render's External URL):
-//   $env:DATABASE_URL="postgresql://…-postgres.render.com/afit_nests_db"
-//   $env:DATABASE_SSL="true"
-//   $env:ADMIN_EMAIL="admin@afitnests.com"
-//   node server/src/scripts/enroll-admin-mfa.js
 import 'dotenv/config'
 import dotenv from 'dotenv'
 import path from 'path'
