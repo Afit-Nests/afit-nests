@@ -13,6 +13,26 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      // The NavigationRoute that serves index.html for SPA routing must NOT
+      // intercept navigation to /api/* paths. In the split-deployment setup
+      // (SPA on Vercel, backend on Render), the Google OAuth callback redirects
+      // the browser to /api/auth/google/callback. If the PWA service worker
+      // catches that navigation and serves index.html, the SPA router tries to
+      // match /api/auth/google/callback as a client route, finds no match, and
+      // renders a blank screen. navigateFallbackDenylist excludes /api/* so
+      // those requests go to the network (Vercel's edge → backend proxy).
+      //
+      // NOTE: this must be inside workbox, not at the top level of VitePWA,
+      // because vite-plugin-pwa v1.x spreads ...options.workbox and then
+      // overrides navigateFallbackAllowlist but does NOT pass
+      // navigateFallbackDenylist from the top level.
+      workbox: {
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [
+          /^\/api\//,
+        ],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
       manifest: {
         name: 'AFIT Nests',
         short_name: 'AFIT Nests',
@@ -37,13 +57,9 @@ export default defineConfig({
           {
             src: 'icons/icon-512.png',
             sizes: '512x512',
-            type: 'image/png',
             purpose: 'any maskable',
           },
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
     }),
   ],
