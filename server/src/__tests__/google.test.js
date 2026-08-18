@@ -375,13 +375,19 @@ test('GET /auth/google/callback rejects an id_token whose email_verified is fals
   } finally { restoreFetch() }
 })
 
-test('GET /auth/google/start uses CLIENT_ORIGIN for redirect_uri in production split-deployment', async () => {
-  // In production, CLIENT_ORIGIN points to the SPA (Vercel) and the backend
-  // is on a different host (Render). The redirect_uri must use the frontend
-  // origin so the callback goes through Vercel and the session cookie lands
-  // on the SPA domain, not the backend domain.
+test('GET /auth/google/start uses X-Forwarded-Host for redirect_uri behind a proxy', async () => {
+  // In a split deployment (SPA on Vercel, backend on Render), Vercel's
+  // rewrite forwards the original Host via X-Forwarded-Host. The redirect_uri
+  // must use that host so Google redirects back through the frontend (Vercel),
+  // keeping the state and session cookies on the SPA's domain.
   await withTestApp(async (baseUrl) => {
-    const response = await fetch(`${baseUrl}/api/auth/google/start`, { redirect: 'manual' })
+    const response = await fetch(`${baseUrl}/api/auth/google/start`, {
+      redirect: 'manual',
+      headers: {
+        'X-Forwarded-Host': 'afit-nests.vercel.app',
+        'X-Forwarded-Proto': 'https',
+      },
+    })
     assert.ok(REDIRECT_STATUS.includes(response.status))
     const location = response.headers.get('location') || ''
     const url = new URL(location)

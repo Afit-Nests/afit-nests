@@ -409,25 +409,19 @@ function skipCsrf(req) {
 
 // Build the redirect_uri we register in Google Cloud Console.
 //
-// In a same-origin deployment (SPA and backend on the same domain) we build
-// this from the request host so it matches whatever origin the user hit.
+// The scheme + host come from the request so the callback always goes to
+// the same origin the user's browser is on. In a same-origin deployment
+// (Vite dev server or Render static host) this is the request host. In a
+// split deployment (SPA on Vercel, backend on Render) Vercel's rewrite
+// forwards the original Host via X-Forwarded-Host, so req.get('host')
+// returns the SPA's origin — which is exactly what we want. This keeps the
+// redirect_uri, the state cookie, and the session cookie all on the same
+// domain so the browser sends them on both the callback and subsequent
+// API calls.
 //
-// In a split deployment (SPA on Vercel, backend on Render) we MUST build it
-// from CLIENT_ORIGIN so the callback goes through the frontend (Vercel), not
-// directly to the backend. If the callback hits the backend directly, the
-// session cookie gets set on the backend's domain and the SPA (on the
-// frontend domain) never receives it — resulting in a silent 401 and a
-// blank dashboard screen. When the callback goes through the frontend,
-// Vercel's rewrite proxies it to the backend and the session cookie is set
-// on the frontend domain, so it's accessible to the SPA on the next call.
+// The path is fixed; Google requires exact matching, so a trailing slash
+// mismatch is a hard error.
 function googleRedirectUri(req) {
-  const clientOrigin = process.env.CLIENT_ORIGIN
-  if (clientOrigin && clientOrigin !== 'http://localhost:5173') {
-    // Production split-deployment: callback must go through the frontend
-    // so cookies land on the SPA's domain, not the backend's.
-    return `${clientOrigin}/api/auth/google/callback`
-  }
-  // Dev / same-origin fallback: build from the request host.
   // Trust X-Forwarded-* because we set `app.set('trust proxy', 1)`.
   const proto = req.headers['x-forwarded-proto'] || req.protocol
   const host = req.headers['x-forwarded-host'] || req.get('host')
