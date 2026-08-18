@@ -19,7 +19,11 @@ export function setSessionCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    // SameSite=None is required for cross-origin API calls from the SPA
+    // (e.g., when VITE_API_BASE_URL is set to the backend URL). With
+    // SameSite=Lax, cookies are NOT sent on cross-site fetch() requests.
+    // SameSite=None requires Secure to be true, which is the case in production.
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: SESSION_TTL_SECONDS * 1000,
     path: '/',
   })
@@ -29,7 +33,7 @@ export function clearSessionCookie(res) {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
   })
 }
