@@ -97,7 +97,7 @@ export default function Verifications() {
               </div>
             )}
             {list.map(landlord => (
-              <div key={landlord.id} onClick={() => setSelected(landlord)} style={{ background: 'var(--card)', borderRadius: '16px', padding: '1.2rem 1.4rem', border: `2px solid ${selected?.id === landlord.id ? 'var(--orange)' : 'var(--beige-dark)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', transition: 'all 0.2s' }}>
+              <div key={landlord.id} onClick={() => setSelected(landlord)} style={{ background: 'var(--card)', borderRadius: '16px', padding: '1.2rem 1.4rem', border: `2px solid ${selected?.id === landlord.id ? 'var(--orange)' : 'var(--beige-dark)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', transition: 'border-color var(--duration-panel) ease' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontFamily: 'Playfair Display, serif', fontSize: '1.1rem', flexShrink: 0 }}>
                     {landlord.full_name?.charAt(0)}

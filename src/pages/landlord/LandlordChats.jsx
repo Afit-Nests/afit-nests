@@ -148,7 +148,7 @@ export default function LandlordChats() {
             </div>
           ) : (
             chats.map(chat => (
-              <div key={chat.id} onClick={() => setSelectedChat(chat)} style={{ padding: '1.2rem 1.4rem', cursor: 'pointer', background: selectedChat?.id === chat.id ? 'var(--beige)' : 'transparent', borderBottom: '1px solid var(--beige-dark)', borderLeft: `3px solid ${selectedChat?.id === chat.id ? 'var(--orange)' : 'transparent'}`, transition: 'all 0.2s' }}>
+              <div key={chat.id} onClick={() => setSelectedChat(chat)} style={{ padding: '1.2rem 1.4rem', cursor: 'pointer', background: selectedChat?.id === chat.id ? 'var(--beige)' : 'transparent', borderBottom: '1px solid var(--beige-dark)', borderLeft: `3px solid ${selectedChat?.id === chat.id ? 'var(--orange)' : 'transparent'}`, transition: 'background-color var(--duration-hover) ease, border-color var(--duration-hover) ease' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.8rem' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontFamily: 'Playfair Display, serif', flexShrink: 0 }}>
                     {chat.profiles?.full_name?.charAt(0) || 'S'}

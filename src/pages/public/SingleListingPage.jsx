@@ -174,7 +174,7 @@ export default function SingleListingPage() {
                       </button>
                       <div style={{ position: 'absolute', bottom: '1rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.4rem' }}>
                         {listing.photos.map((_, i) => (
-                          <button key={i} onClick={() => setCurrentPhoto(i)} style={{ width: i === currentPhoto ? '20px' : '8px', height: '8px', borderRadius: '50px', background: i === currentPhoto ? 'white' : 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', padding: 0 }} />
+                          <button key={i} onClick={() => setCurrentPhoto(i)} style={{ width: i === currentPhoto ? '20px' : '8px', height: '8px', borderRadius: '50px', background: i === currentPhoto ? 'white' : 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', transition: 'width var(--duration-panel) var(--ease-out), background-color var(--duration-panel) ease', padding: 0 }} />
                         ))}
                       </div>
                     </>

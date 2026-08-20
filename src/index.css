@@ -21,6 +21,16 @@
   --shadow-sm: 0 1px 2px rgba(20, 32, 51, 0.06), 0 1px 10px rgba(20, 32, 51, 0.04);
   --shadow-md: 0 10px 30px rgba(20, 32, 51, 0.10);
   --shadow-focus: 0 0 0 4px rgba(242, 105, 42, 0.16);
+
+  /* Motion. Built-in CSS easings are too weak for deliberate motion, so
+     durations and curves live here as tokens — extend these rather than
+     hand-typing a new value at the point of use. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);        /* entering / exiting */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);    /* moving on screen */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);     /* iOS-like drawer curve */
+  --duration-press: 120ms;                           /* press feedback */
+  --duration-hover: 160ms;                           /* hover / colour change */
+  --duration-panel: 240ms;                           /* dropdowns, selects, cards */
 }
 
 * {
@@ -44,12 +54,27 @@ button,
 input,
 select,
 textarea {
-  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+  transition:
+    background-color var(--duration-hover) ease,
+    border-color var(--duration-hover) ease,
+    box-shadow var(--duration-hover) ease,
+    color var(--duration-hover) ease,
+    transform var(--duration-press) var(--ease-out);
 }
 
-button:hover,
-a:hover {
-  transform: translateY(-1px);
+/* Hover lift is gated: a tap on a touch device fires a false hover, which
+   would otherwise leave the control stuck in the lifted state. */
+@media (hover: hover) and (pointer: fine) {
+  button:hover,
+  a:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Press feedback. Must come after :hover so the press wins while both apply. */
+button:active,
+a[role='button']:active {
+  transform: scale(0.97);
 }
 
 button:disabled,

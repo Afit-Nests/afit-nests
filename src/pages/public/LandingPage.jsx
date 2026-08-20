@@ -103,7 +103,7 @@ export default function LandingPage() {
                   {/* Dots */}
                   <div style={{ position: 'absolute', bottom: '0.7rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.35rem' }}>
                     {listings.map((_, i) => (
-                      <button key={i} onClick={() => setCurrentListing(i)} style={{ width: i === currentListing ? '18px' : '7px', height: '7px', borderRadius: '50px', background: i === currentListing ? 'white' : 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
+                      <button key={i} onClick={() => setCurrentListing(i)} style={{ width: i === currentListing ? '18px' : '7px', height: '7px', borderRadius: '50px', background: i === currentListing ? 'white' : 'rgba(255,255,255,0.5)', border: 'none', cursor: 'pointer', transition: 'width var(--duration-panel) var(--ease-out), background-color var(--duration-panel) ease', padding: 0 }} />
                     ))}
                   </div>
                 </>

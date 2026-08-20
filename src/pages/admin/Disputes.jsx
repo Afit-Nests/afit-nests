@@ -116,7 +116,7 @@ export default function Disputes() {
               </div>
             )}
             {filtered.map(dispute => (
-              <div key={dispute.id} onClick={() => handleSelect(dispute)} style={{ background: 'var(--card)', borderRadius: '16px', padding: '1.4rem', border: `2px solid ${selected?.id === dispute.id ? 'var(--orange)' : 'var(--beige-dark)'}`, cursor: 'pointer', transition: 'all 0.2s' }}>
+              <div key={dispute.id} onClick={() => handleSelect(dispute)} style={{ background: 'var(--card)', borderRadius: '16px', padding: '1.4rem', border: `2px solid ${selected?.id === dispute.id ? 'var(--orange)' : 'var(--beige-dark)'}`, cursor: 'pointer', transition: 'border-color var(--duration-panel) ease' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.8rem' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)' }}>{dispute.profiles?.full_name} vs {dispute.landlord?.full_name}</div>

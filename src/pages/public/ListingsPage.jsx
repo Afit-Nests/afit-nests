@@ -67,7 +67,7 @@ export default function ListingsPage() {
         <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text)', display: 'block', marginBottom: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room Type</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {ROOM_TYPES.map(type => (
-            <button key={type} onClick={() => setSelectedType(type)} style={{ background: selectedType === type ? 'var(--blue)' : 'transparent', color: selectedType === type ? 'white' : 'var(--text)', border: `1px solid ${selectedType === type ? 'var(--blue)' : 'var(--beige-dark)'}`, padding: '0.5rem 1rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', textAlign: 'left', fontFamily: 'DM Sans, sans-serif', transition: 'all 0.2s' }}>
+            <button key={type} onClick={() => setSelectedType(type)} style={{ background: selectedType === type ? 'var(--blue)' : 'transparent', color: selectedType === type ? 'white' : 'var(--text)', border: `1px solid ${selectedType === type ? 'var(--blue)' : 'var(--beige-dark)'}`, padding: '0.5rem 1rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', textAlign: 'left', fontFamily: 'DM Sans, sans-serif', transition: 'background-color var(--duration-hover) ease, color var(--duration-hover) ease, border-color var(--duration-hover) ease' }}>
               {type}
             </button>
           ))}
@@ -131,7 +131,7 @@ export default function ListingsPage() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.2rem' }}>
                 {filtered.map(listing => (
-                  <div key={listing.id} onClick={() => setSelectedId(listing.id)} style={{ background: 'var(--card)', borderRadius: '20px', overflow: 'hidden', border: `2px solid ${selectedId === listing.id ? 'var(--orange)' : 'var(--beige-dark)'}`, cursor: 'pointer', transition: 'all 0.2s', boxShadow: selectedId === listing.id ? '0 8px 30px rgba(249,115,22,0.2)' : 'none' }}>
+                  <div key={listing.id} onClick={() => setSelectedId(listing.id)} style={{ background: 'var(--card)', borderRadius: '20px', overflow: 'hidden', border: `2px solid ${selectedId === listing.id ? 'var(--orange)' : 'var(--beige-dark)'}`, cursor: 'pointer', transition: 'border-color var(--duration-panel) ease, box-shadow var(--duration-panel) ease', boxShadow: selectedId === listing.id ? '0 8px 30px rgba(249,115,22,0.2)' : 'none' }}>
                     <div style={{ height: '160px', background: 'linear-gradient(135deg, var(--blue) 0%, #2A5298 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                       {listing.photos && listing.photos.length > 0 ? (
                         <img src={listing.photos[0]} alt={listing.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

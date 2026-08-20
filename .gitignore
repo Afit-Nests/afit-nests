@@ -41,3 +41,14 @@ security/
 SECURITY.md
 server/README.md
 public/.well-known/
+
+# Agent skills — installed per-developer, not project source.
+# Restore with: npx skills@latest add emilkowalski/skills
+#               npx skills@latest add nextlevelbuilder/ui-ux-pro-max-skill
+.claude/skills/
+skills-lock.json
+
+# Sibling agent dirs the skills installer also writes to
+.agents/
+.hermes/
+.junie/
