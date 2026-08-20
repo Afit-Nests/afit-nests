@@ -15,27 +15,38 @@ export function signSession(profile) {
   )
 }
 
+// Session cookie attributes, shared by set and clear. clearCookie only removes
+// a cookie when its attributes match the ones it was set with, so these must
+// never drift apart — hence the single source.
+//
+// SameSite=Lax, deliberately not None. The SPA and the API are same-origin in
+// every environment: the SPA host proxies /api/* to the backend (see
+// vercel.json), so the session cookie is always first-party.
+//
+// Do NOT switch this to 'none' in order to point VITE_API_BASE_URL straight at
+// the backend origin. The SPA host and the backend host are different sites, so
+// that turns the session cookie into a third-party cookie, and browsers drop
+// those by default (Safari always; Chrome in Incognito and for the restricted
+// cohort). SameSite=None only exempts a cookie from SameSite rules — it does
+// not survive third-party cookie blocking. Google OAuth breaks first and most
+// visibly, because its redirect makes the SPA boot cold and read the session
+// from /auth/me alone, with no in-memory user to mask the missing cookie.
+const sessionCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/',
+})
+
 export function setSessionCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    // SameSite=None is required for cross-origin API calls from the SPA
-    // (e.g., when VITE_API_BASE_URL is set to the backend URL). With
-    // SameSite=Lax, cookies are NOT sent on cross-site fetch() requests.
-    // SameSite=None requires Secure to be true, which is the case in production.
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    ...sessionCookieOptions(),
     maxAge: SESSION_TTL_SECONDS * 1000,
-    path: '/',
   })
 }
 
 export function clearSessionCookie(res) {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/',
-  })
+  res.clearCookie(COOKIE_NAME, sessionCookieOptions())
 }
 
 export async function requireAuth(req, res, next) {

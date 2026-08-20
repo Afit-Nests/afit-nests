@@ -44,9 +44,15 @@ backend exchanges the returned `code` for tokens over a private channel.
    rejects mismatches, including trailing slashes and HTTP/HTTPS variants):
 
    ```
-   http://localhost:4000/api/auth/google/callback                       (local dev)
-   https://api.your-domain.example/api/auth/google/callback             (prod)
+   http://localhost:4000/api/auth/google/callback                  (local dev)
+   https://your-domain.example/api/auth/google/callback            (prod — the SPA origin)
    ```
+
+   In production the callback lives on the **SPA's own origin**, not the
+   backend's. The backend builds `redirect_uri` from the incoming request
+   host, and the SPA host rewrites `/api/*` to the backend (see
+   `vercel.json`), so the whole round-trip stays on one origin. See the
+   same-origin requirement below — this is not cosmetic.
 
 3. Add these **Authorized JavaScript origins** (the SPA origin — for
    completeness; we use the redirect flow so this isn't strictly required
@@ -69,6 +75,32 @@ backend exchanges the returned `code` for tokens over a private channel.
 5. Restart the backend. The "Continue with Google" button on
    `/student/login` starts the redirect to Google automatically; no SPA
    rebuild is required because the SPA never embeds the client secret.
+
+### The SPA and the API must be same-origin
+
+**Set `VITE_API_BASE_URL=/api` in production** (or leave it unset — production
+builds already fall back to `/api`). The SPA host rewrites `/api/*` to the
+backend, so the session cookie is issued on, and sent from, one single origin.
+
+Pointing `VITE_API_BASE_URL` at the backend's absolute URL
+(`https://….onrender.com/api`) breaks sign-in. The SPA host and the backend
+host are different sites, so the session cookie becomes a **third-party
+cookie**, and browsers drop those by default — Safari always, Chrome in
+Incognito and for the restricted cohort.
+
+Raising the cookie to `SameSite=None` does **not** rescue this: `SameSite`
+governs SameSite rules only, and is independent of third-party cookie
+blocking. The cookie stays `SameSite=Lax` on purpose (`server/src/auth.js`).
+
+Google sign-in is where this surfaces first and most reliably. After a
+password login the SPA still holds the user in React state, so the UI looks
+signed in and only breaks on refresh. Google finishes with a full-page
+redirect, so the SPA boots cold and has to read the session from `/auth/me`
+alone — with nothing in memory to mask the missing cookie. The symptom is
+"Google signs in, then dumps me back at the login page".
+
+Note that `VITE_API_BASE_URL` is inlined at **build** time, so changing it
+requires a redeploy, not just a restart.
 
 ### How accounts are linked
 
