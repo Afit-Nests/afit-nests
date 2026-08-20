@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { backend } from '../../lib/personalBackendClient'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, Users, LogOut, Database } from 'lucide-react'
+import { LayoutDashboard, BadgeCheck, Clock, AlertTriangle, Home, Users, LogOut, Database, CheckCircle2, ArrowRight } from 'lucide-react'
 import MobileNav from '../../components/common/MobileNav'
 import MfaCard from '../../components/common/MfaCard'
 
@@ -38,90 +38,113 @@ export default function AdminDashboard() {
     setLoading(false)
   }
 
+  // Only genuinely actionable queues belong here. The panel previously
+  // repeated the same four numbers already shown in the cards above it.
+  const attention = [
+    { count: stats.verifications, label: 'landlord verifications waiting', to: '/admin/verifications', icon: <BadgeCheck size={16} aria-hidden="true" /> },
+    { count: stats.disputes, label: 'open disputes to resolve', to: '/admin/disputes', icon: <AlertTriangle size={16} aria-hidden="true" /> },
+  ].filter(item => item.count > 0)
+
   return (
-    <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--beige)', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
+    <div className="dashboard-layout" style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '240px 1fr' }}>
       <MobileNav links={SIDEBAR_LINKS} />
 
-      <div className="desktop-sidebar" style={{ background: 'var(--blue-dark)', padding: '2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'sticky', top: 0, height: '100vh' }}>
-        <Link to="/" style={{ textDecoration: 'none', marginBottom: '2rem', display: 'block' }}>
+      <div className="desktop-sidebar" style={{ padding: '2rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'sticky', top: 0, height: '100vh' }}>
+        <Link to="/" style={{ textDecoration: 'none', marginBottom: 'var(--space-5)', display: 'block' }}>
           <span style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.4rem', fontWeight: 900, color: 'white' }}>AFIT <span style={{ color: 'var(--orange)' }}>Nests</span></span>
-          <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', marginTop: '0.2rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin Panel</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.5)', marginTop: '0.2rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin Panel</div>
         </Link>
         {SIDEBAR_LINKS.map(item => (
-          <Link key={item.to} to={item.to} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none', background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent', color: item.active ? 'white' : 'rgba(255,255,255,0.6)', fontSize: '0.88rem', fontWeight: item.active ? 600 : 400 }}>
+          <Link key={item.to} to={item.to} aria-current={item.active ? 'page' : undefined} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', padding: '0.75rem 1rem', borderRadius: '12px', textDecoration: 'none', background: item.active ? 'rgba(255,255,255,0.1)' : 'transparent', color: item.active ? 'white' : 'rgba(255,255,255,0.6)', fontSize: 'var(--text-base)', fontWeight: item.active ? 600 : 400 }}>
             {item.icon} {item.label}
           </Link>
         ))}
-        <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'white', marginBottom: '0.5rem' }}>{profile?.full_name || 'Admin'}</div>
-          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>
-            <LogOut size={14} /> Logout
+        <div style={{ marginTop: 'auto', padding: 'var(--space-3)', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'white', marginBottom: '0.5rem' }}>{profile?.full_name || 'Admin'}</div>
+          <button onClick={async () => { await signOut(); window.location.href = '/' }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.4)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}>
+            <LogOut size={14} aria-hidden="true" /> Logout
           </button>
         </div>
       </div>
 
-      <div className="main-content" style={{ padding: '2.5rem', overflowY: 'auto' }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: '1.8rem', fontWeight: 900, color: 'var(--blue-dark)' }}>Admin Dashboard</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem' }}>Platform overview and management.</p>
-        </div>
+      <div className="main-content" style={{ padding: 'var(--space-5)', overflowY: 'auto' }}>
+        <header style={{ marginBottom: 'var(--space-5)' }}>
+          <h1 style={{ fontFamily: 'Playfair Display, serif', fontSize: 'var(--text-xl)', fontWeight: 900, color: 'var(--blue-dark)', lineHeight: 1.2 }}>Admin Dashboard</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-base)', marginTop: '0.35rem' }}>Platform overview and management.</p>
+        </header>
 
-        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.2rem', marginBottom: '2rem' }}>
+        <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
           {[
-            { icon: <Home size={28} color="var(--blue)" />, label: 'Active Listings', value: loading ? '...' : stats.listings, link: '/listings' },
-            { icon: <BadgeCheck size={28} color={stats.verifications > 0 ? 'var(--orange)' : 'var(--blue)'} />, label: 'Pending Verifications', value: loading ? '...' : stats.verifications, link: '/admin/verifications', urgent: stats.verifications > 0 },
-            { icon: <AlertTriangle size={28} color={stats.disputes > 0 ? 'var(--orange)' : 'var(--blue)'} />, label: 'Open Disputes', value: loading ? '...' : stats.disputes, link: '/admin/disputes', urgent: stats.disputes > 0 },
-            { icon: <Users size={28} color="var(--blue)" />, label: 'Total Users', value: loading ? '...' : stats.users, link: '#' },
+            { icon: <Home size={22} color="var(--blue)" aria-hidden="true" />, label: 'Active Listings', value: stats.listings, link: '/listings' },
+            { icon: <BadgeCheck size={22} color={stats.verifications > 0 ? 'var(--orange)' : 'var(--blue)'} aria-hidden="true" />, label: 'Pending Verifications', value: stats.verifications, link: '/admin/verifications', urgent: stats.verifications > 0 },
+            { icon: <AlertTriangle size={22} color={stats.disputes > 0 ? 'var(--orange)' : 'var(--blue)'} aria-hidden="true" />, label: 'Open Disputes', value: stats.disputes, link: '/admin/disputes', urgent: stats.disputes > 0 },
+            { icon: <Users size={22} color="var(--blue)" aria-hidden="true" />, label: 'Total Users', value: stats.users, link: '/admin/cms' },
           ].map(stat => (
-            <Link key={stat.label} to={stat.link} style={{ textDecoration: 'none' }}>
-              <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.5rem', border: `1px solid ${stat.urgent ? 'rgba(249,115,22,0.3)' : 'var(--beige-dark)'}` }}>
-                <div style={{ marginBottom: '0.8rem' }}>{stat.icon}</div>
-                <div style={{ fontFamily: 'Playfair Display, serif', fontSize: '2rem', fontWeight: 900, color: stat.urgent ? 'var(--orange)' : 'var(--blue)', lineHeight: 1 }}>{stat.value}</div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)', marginTop: '0.3rem' }}>{stat.label}</div>
+            <Link key={stat.label} to={stat.link} className="dash-tile" style={stat.urgent ? { borderColor: 'rgba(242,105,42,0.35)' } : undefined}>
+              {stat.icon}
+              <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 'var(--text-2xl)', fontWeight: 900, color: stat.urgent ? 'var(--orange)' : 'var(--blue)', lineHeight: 1, marginTop: 'var(--space-2)' }}>
+                {loading ? '—' : stat.value}
               </div>
+              <div style={{ fontWeight: 500, fontSize: 'var(--text-base)', color: 'var(--text-muted)', marginTop: '0.35rem' }}>{stat.label}</div>
             </Link>
           ))}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-          <div style={{ background: 'var(--card)', borderRadius: '20px', padding: '1.8rem', border: '1px solid var(--beige-dark)' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--blue)', marginBottom: '1.2rem' }}>Quick Actions</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              <Link to="/admin/verifications" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--orange)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem' }}>
-                <BadgeCheck size={16} /> Review Verifications
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+          <section className="dash-card">
+            <h2 className="dash-section-title" style={{ marginBottom: 'var(--space-3)' }}>Quick Actions</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <Link to="/admin/verifications" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--orange)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '999px', textDecoration: 'none', fontWeight: 600, fontSize: 'var(--text-base)' }}>
+                <BadgeCheck size={16} aria-hidden="true" /> Review Verifications
               </Link>
-              <Link to="/admin/cms" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--blue)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem' }}>
-                <Database size={16} /> Open All-in-one CMS
+              <Link to="/admin/cms" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--blue)', color: 'white', padding: '0.9rem 1.2rem', borderRadius: '999px', textDecoration: 'none', fontWeight: 600, fontSize: 'var(--text-base)' }}>
+                <Database size={16} aria-hidden="true" /> Open All-in-one CMS
               </Link>
-              <Link to="/admin/pending-allocations" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                <Clock size={16} /> Pending Allocations
+              <Link to="/admin/pending-allocations" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--card)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '999px', textDecoration: 'none', fontWeight: 600, fontSize: 'var(--text-base)', border: '1px solid var(--line)' }}>
+                <Clock size={16} aria-hidden="true" /> Pending Allocations
               </Link>
-              <Link to="/admin/disputes" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                <AlertTriangle size={16} /> Manage Disputes
+              <Link to="/admin/disputes" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--card)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '999px', textDecoration: 'none', fontWeight: 600, fontSize: 'var(--text-base)', border: '1px solid var(--line)' }}>
+                <AlertTriangle size={16} aria-hidden="true" /> Manage Disputes
               </Link>
-              <Link to="/listings" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--beige)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.88rem', border: '1px solid var(--beige-dark)' }}>
-                <Home size={16} /> View All Listings
+              <Link to="/listings" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', background: 'var(--card)', color: 'var(--text)', padding: '0.9rem 1.2rem', borderRadius: '999px', textDecoration: 'none', fontWeight: 600, fontSize: 'var(--text-base)', border: '1px solid var(--line)' }}>
+                <Home size={16} aria-hidden="true" /> View All Listings
               </Link>
             </div>
-          </div>
+          </section>
 
-          <div style={{ background: 'var(--blue)', borderRadius: '20px', padding: '1.8rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: '1.2rem' }}>Platform Info</h3>
-            {[
-              { label: 'Active Listings', value: stats.listings, icon: <Home size={14} /> },
-              { label: 'Pending Verifications', value: stats.verifications, icon: <BadgeCheck size={14} /> },
-              { label: 'Open Disputes', value: stats.disputes, icon: <AlertTriangle size={14} /> },
-              { label: 'Total Users', value: stats.users, icon: <Users size={14} /> },
-            ].map(item => (
-              <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)' }}>{item.icon} {item.label}</span>
-                <span style={{ fontSize: '1rem', color: 'white', fontWeight: 700, fontFamily: 'Playfair Display, serif' }}>{loading ? '...' : item.value}</span>
+          <section className="dash-card">
+            <h2 className="dash-section-title" style={{ marginBottom: 'var(--space-3)' }}>Needs Attention</h2>
+
+            {loading ? (
+              <p style={{ fontSize: 'var(--text-base)', color: 'var(--text-muted)' }}>Checking queues…</p>
+            ) : attention.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-3) 0', color: 'var(--text-muted)' }}>
+                <CheckCircle2 size={20} color="var(--green)" aria-hidden="true" />
+                <span style={{ fontSize: 'var(--text-base)' }}>Nothing waiting. All queues are clear.</span>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                {attention.map(item => (
+                  <Link key={item.to} to={item.to} className="dash-tile" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-3)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(242,105,42,0.12)', color: 'var(--orange)', flexShrink: 0 }}>
+                      {item.icon}
+                    </span>
+                    <span style={{ flex: 1, fontSize: 'var(--text-base)', color: 'var(--text)' }}>
+                      <strong style={{ color: 'var(--orange)' }}>{item.count}</strong> {item.label}
+                    </span>
+                    <ArrowRight size={16} color="var(--text-muted)" aria-hidden="true" />
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 'var(--space-3)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--line)' }}>
+              {loading ? '—' : `${stats.users} total users · ${stats.listings} active listings`}
+            </p>
+          </section>
         </div>
 
-        <div style={{ marginTop: '1.5rem', maxWidth: '520px' }}>
+        <div style={{ marginTop: 'var(--space-4)', maxWidth: '520px' }}>
           <MfaCard />
         </div>
       </div>

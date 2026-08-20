@@ -31,6 +31,28 @@
   --duration-press: 120ms;                           /* press feedback */
   --duration-hover: 160ms;                           /* hover / colour change */
   --duration-panel: 240ms;                           /* dropdowns, selects, cards */
+
+  /* Type scale. Sizes were previously hand-picked per component (0.72, 0.75,
+     0.82, 0.85, 0.88, 0.9…), which reads as drift rather than hierarchy.
+     Pick the nearest step instead of inventing a value. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.25rem;
+
+  /* Spacing and radii */
+  --space-1: 0.5rem;
+  --space-2: 0.75rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-5: 2rem;
+  --space-6: 3rem;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 }
 
 * {
@@ -165,7 +187,7 @@ a:focus-visible {
 
 .dashboard-layout section,
 .dashboard-layout .main-content > div[style*='var(--card)'],
-.dashboard-layout .main-content a > div,
+.dashboard-layout .main-content a:not(.dash-tile) > div,
 .dashboard-layout .cms-stats-grid > div,
 .dashboard-layout .cms-workspace-grid > div,
 .dashboard-layout .cms-workspace-grid > section,
@@ -174,19 +196,19 @@ a:focus-visible {
 }
 
 .dashboard-layout .cms-stats-grid > div,
-.dashboard-layout .stats-grid a > div {
+.dashboard-layout .stats-grid a:not(.dash-tile) > div {
   background:
     linear-gradient(180deg, #ffffff 0%, #fffaf3 100%) !important;
   border-top: 3px solid rgba(242, 105, 42, 0.65) !important;
 }
 
 .dashboard-layout .cms-stats-grid > div:nth-child(2n),
-.dashboard-layout .stats-grid a:nth-child(2n) > div {
+.dashboard-layout .stats-grid a:not(.dash-tile):nth-child(2n) > div {
   border-top-color: rgba(15, 159, 143, 0.65) !important;
 }
 
 .dashboard-layout .cms-stats-grid > div:nth-child(3n),
-.dashboard-layout .stats-grid a:nth-child(3n) > div {
+.dashboard-layout .stats-grid a:not(.dash-tile):nth-child(3n) > div {
   border-top-color: rgba(45, 123, 174, 0.65) !important;
 }
 
@@ -400,4 +422,75 @@ a:focus-visible {
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-6px); }
+}
+
+/* ===== DASHBOARD SURFACES =====
+   These live as classes, not inline styles, because inline styles cannot
+   express :hover / :focus-visible. Clickable cards previously had no
+   elevation feedback for exactly that reason. */
+
+.dash-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+/* Interactive card (stat tiles, listing rows). */
+.dash-tile {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--duration-panel) var(--ease-out),
+    border-color var(--duration-panel) ease,
+    transform var(--duration-press) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dash-tile:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--beige-dark);
+    transform: translateY(-2px);
+  }
+}
+
+.dash-tile:active {
+  transform: scale(0.99);
+}
+
+/* Listing thumbnail. Reserves its box so images can't shift layout as they
+   decode (CLS), and crops rather than distorts whatever aspect it gets. */
+.listing-thumb {
+  width: 88px;
+  height: 66px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--beige-dark);
+  display: block;
+}
+
+.listing-thumb-fallback {
+  width: 88px;
+  height: 66px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Section heading shared by both dashboards. */
+.dash-section-title {
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--blue);
+  margin: 0;
 }
